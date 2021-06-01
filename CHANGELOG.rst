@@ -1,8 +1,15 @@
 Changelog
 =========
 
-Unreleased (2021-01-18)
------------------------
+Not Yet Released
+----------------
+
+`Full list of changes`__
+
+__ https://github.com/StingraySoftware/stingray/compare/v0.3...main
+
+v0.3 (2021-05-31)
+-----------------
 
 - Lots of performance improvements
 - Faster simulations
@@ -21,7 +28,7 @@ Unreleased (2021-01-18)
 
 `Full list of changes`__
 
-__ https://github.com/StingraySoftware/stingray/compare/v0.2...main
+__ https://github.com/StingraySoftware/stingray/compare/v0.2...v0.3
 
 v0.2 (2020-06-17)
 -----------------
