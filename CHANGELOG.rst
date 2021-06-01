@@ -40,7 +40,7 @@ v0.2 (2020-06-17)
 
 `Full list of changes`__
 
-__ https://github.com/StingraySoftware/stingray/compare/v0.1.3...v0.2>
+__ https://github.com/StingraySoftware/stingray/compare/v0.1.3...v0.2
 
 v0.1.3 (2019-06-11)
 -------------------
