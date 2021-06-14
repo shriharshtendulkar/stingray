@@ -13,7 +13,7 @@ from scipy import signal
 
 from .events import EventList
 from .lightcurve import Lightcurve
-from .utils import simon
+from .utils import rebin_data, simon
 
 __all__ = [
     "Multitaper"
@@ -420,6 +420,79 @@ class Multitaper(Powerspectrum):
         f = (K - 1)**2 / K / (K - 0.5)
         jk_var *= f
         return jk_var
+
+    def rebin(self, df=None, f=None, method="mean"):
+        """
+        Rebin the cross spectrum to a new frequency resolution ``df``.
+
+        Parameters
+        ----------
+        df: float
+            The new frequency resolution
+
+        Other Parameters
+        ----------------
+        f: float
+            the rebin factor. If specified, it substitutes df with ``f*self.df``
+
+        Returns
+        -------
+        bin_cs = :class:`Crossspectrum` (or one of its subclasses) object
+            The newly binned cross spectrum or power spectrum.
+            Note: this object will be of the same type as the object
+            that called this method. For example, if this method is called
+            from :class:`AveragedPowerspectrum`, it will return an object of class
+            :class:`AveragedPowerspectrum`, too.
+        """
+
+        if f is None and df is None:
+            raise ValueError('You need to specify at least one between f and '
+                             'df')
+        elif f is not None:
+            df = f * self.df
+
+        # rebin cross spectrum to new resolution
+        binfreq, binmtp, binerr, step_size = \
+            rebin_data(self.freq, self.power, df, self.power_err,
+                       method=method, dx=self.df)
+        # make an empty cross spectrum object
+        # note: syntax deliberate to work with subclass Powerspectrum
+        bin_mtp = copy.copy(self)
+
+        # store the binned periodogram in the new object
+        bin_mtp.freq = binfreq
+        bin_mtp.power = binmtp
+        bin_mtp.eigvals = self.eigvals
+        bin_mtp.df = df
+        bin_mtp.n = self.n
+        bin_mtp.norm = self.norm
+        bin_mtp.nphots = self.nphots
+        bin_mtp.power_err = binerr
+
+        if hasattr(self, 'unnorm_power'):
+            _, binpower_unnorm, _, _ = \
+                rebin_data(self.freq, self.unnorm_power, df,
+                           method=method, dx=self.df)
+
+            bin_mtp.unnorm_power = binpower_unnorm
+
+        if hasattr(self, 'multitaper_norm_power'):
+            _, bin_multitaper_norm_power, _, _ = \
+                rebin_data(self.freq, self.multitaper_norm_power, df,
+                           method=method, dx=self.df)
+
+            bin_mtp.multitaper_norm_power = bin_multitaper_norm_power
+
+        if hasattr(self, 'jk_var_deg_freedom'):
+            _, bin_jk_var_deg_freedom, _, _ = \
+                rebin_data(self.freq, self.jk_var_deg_freedom, df,
+                           method=method, dx=self.df)
+
+            bin_mtp.jk_var_deg_freedom = bin_jk_var_deg_freedom
+
+        bin_mtp.m = np.rint(step_size * self.m)
+
+        return bin_mtp
 
     def compute_rms(self, min_freq, max_freq, white_noise_offset):
         return Powerspectrum.compute_rms(self, min_freq, max_freq,

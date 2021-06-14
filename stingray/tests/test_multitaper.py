@@ -141,3 +141,98 @@ class TestMultitaper(object):
         mtp = Multitaper(self.lc, adaptive=adaptive, jackknife=jackknife)
         assert mtp.multitaper_norm_power is not None
         assert mtp.jk_var_deg_freedom is not None
+
+    def test_fractional_rms_in_frac_norm_is_consistent(self):
+        """ 
+        Copied from test_powerspectrum.py 
+        """
+        time = np.arange(0, 100, 1) + 0.5
+
+        poisson_counts = np.random.poisson(100.0,
+                                           size=time.shape[0])
+
+        lc = Lightcurve(time, counts=poisson_counts, dt=1,
+                        gti=[[0, 100]])
+        mtp = Multitaper(lc, norm="leahy")
+        rms_mtp_l, rms_err_l = mtp.compute_rms(min_freq=mtp.freq[1],
+                                               max_freq=mtp.freq[-1],
+                                               white_noise_offset=0)
+
+        mtp = Multitaper(lc, norm="frac")
+        rms_mtp, rms_err = mtp.compute_rms(min_freq=mtp.freq[1],
+                                           max_freq=mtp.freq[-1],
+                                           white_noise_offset=0)
+        assert np.allclose(rms_mtp, rms_mtp_l, atol=0.01)
+        assert np.allclose(rms_err, rms_err_l, atol=0.01)
+
+    def test_classical_significances_threshold(self):
+        """ 
+        Copied from test_powerspectrum.py 
+        """
+        mtp = Multitaper(self.lc, norm="leahy")
+
+        # change the powers so that just one exceeds the threshold
+        mtp.power = np.zeros_like(mtp.power) + 2.0
+
+        index = 1
+        mtp.power[index] = 10.0
+
+        threshold = 0.01
+
+        pval = mtp.classical_significances(threshold=threshold,
+                                           trial_correction=False)
+        assert pval[0, 0] < threshold
+        assert pval[1, 0] == index
+
+    @pytest.mark.parametrize('df', [2, 3, 5, 1.5, 1, 85])
+    def test_rebin(self, df):
+        """
+        TODO: Not sure how to write tests for the rebin method!
+        """
+        mtp = Multitaper(self.lc, norm="Leahy")
+        bin_mtp = mtp.rebin(df)
+        assert np.isclose(bin_mtp.freq[1] - bin_mtp.freq[0], bin_mtp.df,
+                          atol=1e-4, rtol=1e-4)
+        assert np.isclose(bin_mtp.freq[0],
+                          (mtp.freq[0] - mtp.df * 0.5 + bin_mtp.df * 0.5),
+                          atol=1e-4, rtol=1e-4)
+
+    def test_rebin_uses_mean(self):
+        """
+        Make sure the rebin-method uses "mean" to average instead of summing
+        powers by default, and that this is not changed in the future!
+        Note: function defaults come as a tuple, so the first keyword argument
+        had better be 'method'
+        """
+        mtp = Multitaper(self.lc, norm="Leahy")
+        assert mtp.rebin.__defaults__[2] == "mean"
+
+    def test_rebin_output_shapes(self):
+        """
+        Test wether all the rebinned spectral attributes have the same shape.
+        """
+        mtp = Multitaper(self.lc, norm="Leahy")
+        mtp_rebin = mtp.rebin(df=1.5)
+        assert mtp_rebin.power.shape == mtp_rebin.freq.shape == \
+            mtp_rebin.unnorm_power.shape == mtp_rebin.multitaper_norm_power.shape
+
+    def test_rebin_error(self):
+        mtp = Multitaper(self.lc)
+        with pytest.raises(ValueError):
+            mtp.rebin()
+
+    def test_rebin_smaller_resolution(self):
+        # Original df is between 0.9 and 1.0
+        mtp = Multitaper(self.lc)
+        with pytest.raises(ValueError):
+            new_mtp = mtp.rebin(df=0.1)
+
+    def test_rebin(self):
+        mtp = Multitaper(self.lc)
+        new_mtp = mtp.rebin(df=1.5)
+        assert new_mtp.df == 1.5
+
+    def test_rebin_factor(self):
+        mtp = Multitaper(self.lc)
+        new_mtp = mtp.rebin(f=1.5)
+        assert new_mtp.df == mtp.df * 1.5
