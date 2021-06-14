@@ -420,3 +420,11 @@ class Multitaper(Powerspectrum):
         f = (K - 1)**2 / K / (K - 0.5)
         jk_var *= f
         return jk_var
+
+    def compute_rms(self, min_freq, max_freq, white_noise_offset):
+        return Powerspectrum.compute_rms(self, min_freq, max_freq,
+                                         white_noise_offset=white_noise_offset)
+
+    def classical_significances(self, threshold, trial_correction):
+        return Powerspectrum.classical_significances(self, threshold=threshold,
+                                                     trial_correction=trial_correction)
