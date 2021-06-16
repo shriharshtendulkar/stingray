@@ -143,8 +143,8 @@ class TestMultitaper(object):
         assert mtp.jk_var_deg_freedom is not None
 
     def test_fractional_rms_in_frac_norm_is_consistent(self):
-        """ 
-        Copied from test_powerspectrum.py 
+        """
+        Copied from test_powerspectrum.py
         """
         time = np.arange(0, 100, 1) + 0.5
 
@@ -166,8 +166,8 @@ class TestMultitaper(object):
         assert np.allclose(rms_err, rms_err_l, atol=0.01)
 
     def test_classical_significances_threshold(self):
-        """ 
-        Copied from test_powerspectrum.py 
+        """
+        Copied from test_powerspectrum.py
         """
         mtp = Multitaper(self.lc, norm="leahy")
 

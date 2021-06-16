@@ -1,7 +1,8 @@
 import copy
 
 from stingray.gti import check_gtis, cross_two_gtis
-from stingray.crossspectrum import Crossspectrum, normalize_crossspectrum, normalize_crossspectrum_gauss
+from stingray.crossspectrum import Crossspectrum, normalize_crossspectrum
+from stingray.crossspectrum import normalize_crossspectrum_gauss
 from stingray.powerspectrum import Powerspectrum
 import warnings
 
@@ -19,6 +20,8 @@ __all__ = [
     "Multitaper"
 ]
 
+# Inspired from nitime (https://nipy.org/nitime/)
+
 
 class Multitaper(Powerspectrum):
     """
@@ -32,7 +35,7 @@ class Multitaper(Powerspectrum):
         The normaliation of the power spectrum to be used. Options are
         ``leahy``, ``frac``, ``abs`` and ``none``, default is ``frac``.
 
-    NW: float, optional, default ``None``
+    NW: float, optional, default ``4``
         The normalized half-bandwidth of the data tapers, indicating a
         multiple of the fundamental frequency of the DFT (Fs/N).
         Common choices are n/2, for n >= 4.
@@ -49,9 +52,6 @@ class Multitaper(Powerspectrum):
         Rather than use 2NW tapers, only use the tapers that have better than
         90% spectral concentration within the bandwidth (still using
         a maximum of 2NW tapers)
-
-    Fs: float, optional, default ``1``
-        Sampling rate of the signal
 
     Other Parameters
     ----------------
@@ -71,6 +71,14 @@ class Multitaper(Powerspectrum):
     power: numpy.ndarray
         The array of normalized squared absolute values of Fourier
         amplitudes
+
+    unnorm_power: numpy.ndarray
+        The array of unnormalized values of Fourier amplitudes
+
+    multitaper_norm_power: numpy.ndarray
+        The array of normalized values of Fourier amplitudes, normalized
+        according to the scheme followed in nitime, that is, by the length and
+        the sampling frequency.
 
     power_err: numpy.ndarray
         The uncertainties of ``power``.
@@ -102,11 +110,11 @@ class Multitaper(Powerspectrum):
     Notes
     -----
     The bandwidth of the windowing function will determine the number of
-    tapers to use. This parameters represents trade-off between frequency
+    tapers to use. This parameter (NW) represents trade-off between frequency
     resolution (lower main lobe BW for the taper) and variance reduction
     (higher BW and number of averaged estimates). Typically, the number of
     tapers is calculated as 2x the bandwidth-to-fundamental-frequency
-    ratio, as these eigenfunctions have the best energy concentration.
+    ratio (NW), as these eigenfunctions have the best energy concentration.
 
     """
 
@@ -159,6 +167,35 @@ class Multitaper(Powerspectrum):
 
     def _make_multitaper_periodogram(self, lc, NW=4, adaptive=False,
                                      jackknife=True, low_bias=True):
+        """
+        Auxiliary method computing the normalized multitaper spectral estimate.
+        This includes checking for the presence of and applying Good Time Intervals,
+        computing the a nitime inspired normalized power spectrum, unnormalizing it,
+        and then renormalizing it using the required normalization.
+
+        Parameters
+        ----------
+        lc : :class:`stingray.Lightcurve` objects
+            Two light curves used for computing the cross spectrum.
+
+        NW: float, optional, default ``4``
+        The normalized half-bandwidth of the data tapers, indicating a
+        multiple of the fundamental frequency of the DFT (Fs/N).
+        Common choices are n/2, for n >= 4.
+
+        adaptive: boolean, optional, default ``False``
+            Use an adaptive weighting routine to combine the PSD estimates of
+            different tapers.
+
+        jackknife: boolean, optional, default ``True``
+            Use the jackknife method to make an estimate of the PSD variance
+            at each point.
+
+        low_bias: boolean, optional, default ``True``
+            Rather than use 2NW tapers, only use the tapers that have better than
+            90% spectral concentration within the bandwidth (still using
+            a maximum of 2NW tapers)
+        """
 
         if not isinstance(lc, Lightcurve):
             raise TypeError("lc must be a lightcurve.Lightcurve object")
@@ -212,6 +249,44 @@ class Multitaper(Powerspectrum):
 
     def _fourier_multitaper(self, lc, NW=4, adaptive=False,
                             jackknife=True, low_bias=True):
+        """
+        Auxiliary method to apply the multitaper algorithm by first computing
+        the DPSS windows, then fourier transforming the data tapered with these
+        DPSS windows, and then calculating the power spectral density using a
+        desired scheme (a combination of adaptive and low_bias parameters).
+        Also set some of the multitaper specific attributes.
+
+        Parameters
+        ----------
+        lc : :class:`stingray.Lightcurve` objects
+            Two light curves used for computing the cross spectrum.
+
+        NW: float, optional, default ``4``
+            The normalized half-bandwidth of the data tapers, indicating a
+            multiple of the fundamental frequency of the DFT (Fs/N).
+            Common choices are n/2, for n >= 4.
+
+        adaptive: boolean, optional, default ``False``
+            Use an adaptive weighting routine to combine the PSD estimates of
+            different tapers.
+
+        jackknife: boolean, optional, default ``True``
+            Use the jackknife method to make an estimate of the PSD variance
+            at each point.
+
+        low_bias: boolean, optional, default ``True``
+            Rather than use 2NW tapers, only use the tapers that have better than
+            90% spectral concentration within the bandwidth (still using
+            a maximum of 2NW tapers)
+
+        Returns
+        -------
+        freq_multitaper: numpy.ndarray
+            The frequency mid-bins of the PSD amplitudes
+
+        psd_multitaper: numpy.ndarray
+            The value of the PSD amplitudes at the given frequency mid-bins
+        """
 
         if NW < 0.5:
             raise ValueError("The value of normalized half-bandwidth "
@@ -273,6 +348,31 @@ class Multitaper(Powerspectrum):
         return freq_multitaper, psd_multitaper
 
     def psd_from_freq_response(self, freq_response, weights):
+        """
+        Calculate the weighted PSD from the Fourier transformed data by
+        combinig the frequences responses of these tapered data using the given
+        weights.
+
+        Parameters
+        ----------
+        freq_response: numpy.ndarray
+            The frequency responses or the Fourier transforms of the tapered data
+
+        weights: numpy.ndarray
+            The weights to combine the different Fourier transforms of the data
+            tapered with different windows to produce the weighted PSD.
+
+        Returns
+        -------
+        psd: numpy.ndarray
+            The weighted power spectral density of the provided Fourier
+            transformed data.
+
+        Notes
+        -----
+        The shape of ``freq_response`` and ``weights`` must either be same or
+        broadcastable.
+        """
 
         psd = freq_response * weights
         psd *= psd.conj()
@@ -281,6 +381,38 @@ class Multitaper(Powerspectrum):
         return psd
 
     def _get_adaptive_psd(self, freq_response, eigvals, max_iter=150):
+        r"""Perform an iterative procedure to compute the PSD from tapered data
+        by finding the optimal weights for the direct spectral estimators
+        of the DPSS tapered signals.
+
+        Parameters
+        ----------
+        freq_response: numpy.ndarray
+            The frequency responses or the Fourier transforms of the tapered data
+
+        eigvals: numpy.ndarray
+            The eigenvalues of the DPSS tapers
+
+        max_iter: int, optional, default ``150``
+            Maximum number of iterations for weight computation
+
+        Returns
+        -------
+        psd : numpy.ndarray
+            The adaptively computed PSD
+
+        weights : numpy.ndarray
+            The weights used to combine the tapered spectra
+
+        Notes
+        -----
+        The weights to use for making the multitaper estimate, such that
+        :math:`S_{mt} = \sum_{k} |w_k|^2S_k^{mt} / \sum_{k} |w_k|^2`
+
+        If the number of tapers are less than 3, no adaptive weights are
+        calculated and the square roots of eigenvalues are used as weights
+        to produce the weighted PSD
+        """
 
         n_tapers = len(eigvals)
         n_freqs = freq_response.shape[-1]
@@ -298,10 +430,27 @@ class Multitaper(Powerspectrum):
         var = np.trapz(psd_est, dx=np.pi / n_freqs) / (2 * np.pi)
         del psd_est
 
-        psd = np.empty(n_freqs)  # (501,)
+        psd = np.empty(n_freqs)
 
         weights = np.empty((n_tapers, n_freqs))
 
+        # combine the SDFs in the traditional way in order to estimate
+        # the variance of the timeseries
+
+        # The process is to iteratively switch solving for the following
+        # two expressions:
+        # (1) Adaptive Multitaper SDF:
+        # S^{mt}(f) = [ sum |d_k(f)|^2 S_k(f) ]/ sum |d_k(f)|^2
+        #
+        # (2) Weights
+        # d_k(f) = [sqrt(lam_k) S^{mt}(f)] / [lam_k S^{mt}(f) + E{B_k(f)}]
+        #
+        # Where lam_k are the eigenvalues corresponding to the DPSS tapers,
+        # and the expected value of the broadband bias function
+        # E{B_k(f)} is replaced by its full-band integration
+        # (1/2pi) int_{-pi}^{pi} E{B_k(f)} = sig^2(1-lam_k)
+
+        # start with an estimate from incomplete data--the first 2 tapers
         psd_iter = \
             self.psd_from_freq_response(freq_response[:2],
                                         sqrt_eigvals[:2, np.newaxis])
@@ -312,6 +461,13 @@ class Multitaper(Powerspectrum):
             d_k = (psd_iter / (eigvals[:, np.newaxis] *
                    psd_iter + (1 - eigvals[:, np.newaxis]) * var))
             d_k *= sqrt_eigvals[:, np.newaxis]
+            # Test for convergence -- this is overly conservative, since
+            # iteration only stops when all frequencies have converged.
+            # A better approach is to iterate separately for each freq, but
+            # that is a nonvectorized algorithm.
+            # Take the RMS difference in weights from the previous iterate
+            # across frequencies. If the maximum RMS error across freqs is
+            # less than 1e-10, then we're converged
 
             err -= d_k
             if np.max(np.mean(err ** 2, axis=0)) < 1e-10:
@@ -327,7 +483,7 @@ class Multitaper(Powerspectrum):
 
     def _normalize_multitaper(self, unnorm_power, tseg):
         """
-        Normalize the real part of the mulitaper spectrum estimate to Leahy, 
+        Normalize the real part of the mulitaper spectrum estimate to Leahy,
         absolute rms^2, fractional rms^2 normalization, or not at all.
 
         Parameters
@@ -342,7 +498,6 @@ class Multitaper(Powerspectrum):
         -------
         power: numpy.nd.array
             The normalized spectrum estimate (real part of the spectrum).
-            For 'none' normalization, imaginary part is returned as well.
         """
 
         if self.err_dist == 'poisson':
@@ -362,22 +517,28 @@ class Multitaper(Powerspectrum):
         r"""
         Returns the variance of the log-sdf estimated through jack-knifing
         a group of independent sdf estimates.
+
         Parameters
         ----------
-        yk : ndarray (K, L)
-        The K DFTs of the tapered sequences
-        eigvals : ndarray (K,)
-        The eigenvalues corresponding to the K DPSS tapers
-        sides : str, optional
-        Compute the jackknife pseudovalues over as one-sided or
-        two-sided spectra
-        adpative : bool, optional
-        Compute the adaptive weighting for each jackknife pseudovalue
+
+        freq_response: numpy.ndarray
+            The frequency responses or the Fourier transforms of the tapered data
+
+        eigvals: numpy.ndarray
+            The eigenvalues of the DPSS tapers
+
+        adaptive: boolean
+            Whether or not to use the adaptive weighting method to calculate
+            the log-sdf through jack-knife method
+
         Returns
         -------
+
         var : The estimate for log-sdf variance
+
         Notes
         -----
+
         The jackknifed mean estimate is distributed about the true mean as
         a Student's t-distribution with (K-1) degrees of freedom, and
         standard error equal to sqrt(var). However, Thompson and Chave [1]
@@ -423,7 +584,7 @@ class Multitaper(Powerspectrum):
 
     def rebin(self, df=None, f=None, method="mean"):
         """
-        Rebin the cross spectrum to a new frequency resolution ``df``.
+        Rebin the multitaper spectrum to a new frequency resolution ``df``.
 
         Parameters
         ----------
@@ -437,8 +598,8 @@ class Multitaper(Powerspectrum):
 
         Returns
         -------
-        bin_cs = :class:`Crossspectrum` (or one of its subclasses) object
-            The newly binned cross spectrum or power spectrum.
+        bin_cs = :class:`Multitaper` (or one of its subclasses) object
+            The newly binned multitaper spectrum.
             Note: this object will be of the same type as the object
             that called this method. For example, if this method is called
             from :class:`AveragedPowerspectrum`, it will return an object of class
