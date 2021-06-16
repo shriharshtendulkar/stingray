@@ -236,3 +236,30 @@ class TestMultitaper(object):
         mtp = Multitaper(self.lc)
         new_mtp = mtp.rebin(f=1.5)
         assert new_mtp.df == mtp.df * 1.5
+
+    def test_get_adaptive_psd_with_less_tapers(self):
+        with pytest.warns(UserWarning) as record:
+            mtp = Multitaper(lc=self.lc, NW=1.5, adaptive=True)
+        assert np.any(['Not adaptively' in r.message.args[0]
+                       for r in record])
+        assert mtp.multitaper_norm_power is not None
+
+    def test_max_eigval_less_than_threshold(self):
+        with pytest.warns(UserWarning) as record:
+            mtp = Multitaper(lc=self.lc, NW=0.5, low_bias=True)
+        assert np.any(['not properly use low_bias' in r.message.args[0]
+                       for r in record])
+        assert len(mtp.eigvals) > 0
+
+    def test_init_data_eventlist(self):
+        el = EventList.from_lc(self.lc)
+        mtp_el = Multitaper(data=el, dt=self.lc.dt)
+
+        mtp = Multitaper(data=self.lc)
+
+        assert max(mtp_el.multitaper_norm_power - mtp.multitaper_norm_power) == 0
+
+    def test_init_data_eventlist_no_dt(self):
+        with pytest.raises(ValueError):
+            el = EventList.from_lc(self.lc)
+            mtp_el = Multitaper(data=el)
