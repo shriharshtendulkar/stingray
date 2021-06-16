@@ -584,6 +584,7 @@ def load_events_and_gtis(
     if mission_key not in probe_header:
         mission_key = "TELESCOP"
     mission = probe_header[mission_key].lower()
+
     db = read_mission_info(mission)
     instkey = get_key_from_mission_info(db, "instkey", "INSTRUME")
     instr = mode = None
