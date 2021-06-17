@@ -779,7 +779,7 @@ def _pavnosigfun(power, nspec):
     return sum
 
 
-def confidence_limits(preal, n=1, alpha=0.16):
+def power_confidence_limits(preal, n=1, alpha=0.16):
     """Confidence limits on power, given a signal power in the PDS/Z search.
 
     Adapted from Vaughan et al. 1994, noting that, after appropriate
@@ -804,10 +804,17 @@ def confidence_limits(preal, n=1, alpha=0.16):
     Results
     -------
     pmeas: [float, float]
-        The upper and lower confidence interval on the measured power
+        The upper and lower confidence interval (a, 1-a) on the measured power
+
+    Examples
+    --------
+    >>> power_confidence_limits(preal, n=1, alpha=0.16)
+    >>> cl = power_confidence_limits(150)
+    >>> np.allclose(cl, [127, 176], atol=1)
+    True
     """
     rv = stats.ncx2(2 * n, preal)
-    return rv.isf([alpha, 1 - alpha])
+    return rv.ppf([alpha, 1 - alpha])
 
 
 def power_upper_limit(pmeas, n=1, c=0.95):
