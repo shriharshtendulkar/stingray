@@ -21,7 +21,15 @@ __all__ = ['p_multitrial_from_single_trial',
            'chi2_logp',
            'equivalent_gaussian_Nsigma',
            'equivalent_gaussian_Nsigma_from_logp',
-           'power_upper_limit']
+           'power_confidence_limits',
+           'power_upper_limit',
+           'pf_from_ssig',
+           'pf_from_a',
+           'pf_upper_limit',
+           'a_from_pf',
+           'a_from_ssig',
+           'ssig_from_a',
+           'ssig_from_pf']
 
 
 @vectorize([float64(float32),
