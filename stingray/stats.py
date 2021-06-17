@@ -889,6 +889,9 @@ def pf_upper_limit(pmeas, counts, n=1, c=0.95):
     pmeas: float
         The measured value of power
 
+    counts: int
+        The number of counts in the light curve used to calculate the spectrum
+
     Other Parameters
     ----------------
     n: int
