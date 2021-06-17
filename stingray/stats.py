@@ -20,7 +20,8 @@ __all__ = ['p_multitrial_from_single_trial',
            'classical_pvalue',
            'chi2_logp',
            'equivalent_gaussian_Nsigma',
-           'equivalent_gaussian_Nsigma_from_logp']
+           'equivalent_gaussian_Nsigma_from_logp',
+           'power_upper_limit']
 
 
 @vectorize([float64(float32),
@@ -817,6 +818,17 @@ def power_upper_limit(pmeas, n=1, c=0.95):
     and the Z^2_n searches is always described by a noncentral chi squared
     distribution.
 
+    Note that Vaughan+94 gives p(pmeas | preal), while we are interested in
+    p(real | pmeas), which is not described by the NCX2 stat. Rather than
+    integrating the CDF of this probability distribution, we start from a
+    reasonable approximation and fit to find the preal that gives pmeas as
+    a (e.g.95%) confidence limit.
+
+    As Vaughan+94 shows, this power is always larger than the observed one.
+    This is because we are looking for the maximum signal power that,
+    combined with noise powers, would give the observed power. This involves
+    the possibility that noise powers partially cancel out some signal power.
+
     Parameters
     ----------
     pmeas: float
@@ -835,6 +847,12 @@ def power_upper_limit(pmeas, n=1, c=0.95):
     -------
     psig: float
         The signal power that could produce P>pmeas with 1 - c probability
+
+    Examples
+    --------
+    >>> pup = power_upper_limit(40, 1, 0.99)
+    >>> np.isclose(pup, 75, atol=2)
+    True
     """
     def ppf(x):
         rv = stats.ncx2(2 * n, x)
@@ -845,7 +863,6 @@ def power_upper_limit(pmeas, n=1, c=0.95):
         return rv.ppf(c)
 
     def func_to_minimize(x, xmeas):
-        print(x, xmeas, ppf(x), ppf(x) - xmeas)
         return np.abs(ppf(x) - xmeas)
 
     from scipy.optimize import minimize
@@ -853,11 +870,10 @@ def power_upper_limit(pmeas, n=1, c=0.95):
 
     res = minimize(func_to_minimize, [initial], pmeas, bounds=[(0, initial * 2)])
 
-    print(res)
     return res.x[0]
 
 
-def pf_upper_limit(pmeas, counts, n=1, alpha=0.05):
+def pf_upper_limit(pmeas, counts, n=1, c=0.95):
     """Upper limit on pulsed fraction, given a measured power in the PDS/Z search.
 
     See `power_upper_limit` and `pf_from_ssig`.
@@ -880,9 +896,15 @@ def pf_upper_limit(pmeas, counts, n=1, alpha=0.05):
     -------
     pf: float
         The pulsed fraction that could produce P>pmeas with 1 - c probability
+
+    Examples
+    --------
+    >>> pfup = pf_upper_limit(40, 30000, 1, 0.99)
+    >>> np.isclose(pfup, 0.13, atol=0.01)
+    True
     """
 
-    uplim = power_upper_limit(pmeas, n, alpha)
+    uplim = power_upper_limit(pmeas, n, c)
     return pf_from_ssig(uplim, counts)
 
 
