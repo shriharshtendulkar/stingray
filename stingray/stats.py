@@ -808,7 +808,6 @@ def power_confidence_limits(preal, n=1, alpha=0.16):
 
     Examples
     --------
-    >>> power_confidence_limits(preal, n=1, alpha=0.16)
     >>> cl = power_confidence_limits(150)
     >>> np.allclose(cl, [127, 176], atol=1)
     True
