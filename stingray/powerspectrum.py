@@ -354,6 +354,9 @@ class Powerspectrum(Crossspectrum):
 
         maximum_val = np.argmax(power)
         nyq_ratio = freq[maximum_val] / fnyq
+
+        # I multiply by M because the formulas from Vaughan+94 treat summed powers, while here
+        # we have averaged powers.
         return amplitude_upper_limit(
             power[maximum_val] * self.m, self.nphots, n=self.m, c=c, nyq_ratio=nyq_ratio, fft_corr=True)
 
