@@ -26,7 +26,7 @@ __all__ = [
 class Multitaper(Powerspectrum):
     """
     Class to calculate the multitaper periodogram from lightcurve data.
-    
+
     Parameters
     ----------
     data: :class:`stingray.Lightcurve` object, optional, default ``None``
@@ -169,7 +169,7 @@ class Multitaper(Powerspectrum):
     def _make_multitaper_periodogram(self, lc, NW=4, adaptive=False,
                                      jackknife=True, low_bias=True):
         """Compute the normalized multitaper spectral estimate.
-        
+
         This includes checking for the presence of and applying Good Time Intervals,
         computing the a nitime inspired normalized power spectrum, unnormalizing it,
         and then renormalizing it using the required normalization.
@@ -180,8 +180,8 @@ class Multitaper(Powerspectrum):
             Two light curves used for computing the cross spectrum.
 
         NW: float, optional, default ``4``
-        The normalized half-bandwidth of the data tapers, indicating a
-        multiple of the fundamental frequency of the DFT (Fs/N).
+            The normalized half-bandwidth of the data tapers, indicating a
+            multiple of the fundamental frequency of the DFT (Fs/N).
         Common choices are n/2, for n >= 4.
 
         adaptive: boolean, optional, default ``False``
@@ -251,7 +251,7 @@ class Multitaper(Powerspectrum):
     def _fourier_multitaper(self, lc, NW=4, adaptive=False,
                             jackknife=True, low_bias=True):
         """Compute the multitaper periodogram.
-        
+
         Auxiliary method to apply the multitaper algorithm by first computing
         the DPSS windows, then fourier transforming the data tapered with these
         DPSS windows, and then calculating the power spectral density using a
@@ -351,7 +351,7 @@ class Multitaper(Powerspectrum):
 
     def psd_from_freq_response(self, freq_response, weights):
         """Calculate the weighted PSD from the Fourier transformed data.
-        
+
         Calculate the weighted PSD from the Fourier transformed data by
         combining the frequences responses of these tapered data using the given
         weights.
@@ -385,7 +385,7 @@ class Multitaper(Powerspectrum):
 
     def _get_adaptive_psd(self, freq_response, eigvals, max_iter=150):
         r"""Compute the PSD from tapered data.
-        
+
         Performs an iterative procedure to compute the PSD from tapered data
         by finding the optimal weights for the direct spectral estimators
         of the DPSS tapered signals.
@@ -488,7 +488,7 @@ class Multitaper(Powerspectrum):
 
     def _normalize_multitaper(self, unnorm_power, tseg):
         """Apply one of the allowed normalizations to the periodogram.
-        
+
         Normalize the real part of the multitaper spectrum estimate to Leahy,
         absolute rms^2, fractional rms^2 normalization, or not at all.
 
@@ -521,7 +521,7 @@ class Multitaper(Powerspectrum):
 
     def jackknifed_sdf_variance(self, freq_response, eigvals, adaptive):
         r"""Compute the variance of the spectrum through jack-knife.
-        
+
         Returns the variance of the log-sdf estimated through jack-knifing
         a group of independent sdf estimates.
 
