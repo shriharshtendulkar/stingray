@@ -29,7 +29,8 @@ __all__ = ['p_multitrial_from_single_trial',
            'a_from_pf',
            'a_from_ssig',
            'ssig_from_a',
-           'ssig_from_pf']
+           'ssig_from_pf',
+           'amplitude_upper_limit']
 
 
 @vectorize([float64(float32),
