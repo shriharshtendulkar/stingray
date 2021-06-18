@@ -888,12 +888,22 @@ def power_upper_limit(pmeas, n=1, c=0.95):
 
 
 def amplitude_upper_limit(pmeas, counts, n=1, c=0.95, fft_corr=False, nyq_ratio=0):
-    """Upper limit on pulsed fraction, given a measured power in the PDS/Z search.
+    """Upper limit on a sinusoidal modulation, given a measured power in the PDS/Z search.
 
     Eq. 10 in Vaughan+94 and `a_from_ssig`: they are equivalent but Vaughan+94
     corrects further for the response inside an FFT bin and at frequencies close
     to Nyquist. These two corrections are added by using fft_corr=True and
-    nyq_ratio to the correct f / f_Nyq of the FFT peak
+    nyq_ratio to the correct :math:`f / f_{Nyq}` of the FFT peak
+
+    To understand the meaning of this amplitude: if the modulation is described by:
+
+    ..math:: p = \overline{p} (1 + a * \sin(x))
+
+    this function returns a.
+
+    If it is a sum of sinusoidal harmonics instead
+    ..math:: p = \overline{p} (1 + \sum_l a_l * \sin(lx))
+    a is equivalent to :math:`\sqrt(\sum_l a_l^2)`.
 
     See `power_upper_limit`
 
@@ -925,8 +935,8 @@ def amplitude_upper_limit(pmeas, counts, n=1, c=0.95, fft_corr=False, nyq_ratio=
 
     Results
     -------
-    pf: float
-        The pulsed fraction that could produce P>pmeas with 1 - c probability
+    a: float
+        The modulation amplitude that could produce P>pmeas with 1 - c probability
 
     Examples
     --------

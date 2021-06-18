@@ -10,7 +10,7 @@ import stingray.utils as utils
 from stingray.crossspectrum import AveragedCrossspectrum, Crossspectrum
 from stingray.gti import bin_intervals_from_gtis, check_gtis
 from stingray.largememory import createChunkedSpectra, saveData
-from stingray.stats import pds_probability
+from stingray.stats import pds_probability, amplitude_upper_limit
 from stingray.utils import genDataPath
 
 from .events import EventList
@@ -283,6 +283,79 @@ class Powerspectrum(Crossspectrum):
         pvals = np.vstack([pv[indices], indices])
 
         return pvals
+
+    def modulation_upper_limit(self, fmin=None, fmax=None, c=0.95):
+        """Upper limit on a sinusoidal modulation.
+
+        To understand the meaning of this amplitude: if the modulation is described by:
+
+        ..math:: p = \overline{p} (1 + a * \sin(x))
+
+        this function returns a.
+
+        If it is a sum of sinusoidal harmonics instead
+        ..math:: p = \overline{p} (1 + \sum_l a_l * \sin(lx))
+        a is equivalent to :math:`\sqrt(\sum_l a_l^2)`.
+
+        See `stingray.stats.power_upper_limit`, `stingray.stats.amplitude_upper_limit`
+
+        Parameters
+        ----------
+        fmin: float
+            The minimum frequency to search (defaults to the first nonzero bin)
+
+        fmax: float
+            The minimum frequency to search (defaults to the Nyquist frequency)
+
+        Other Parameters
+        ----------------
+        c: float
+            The confidence value for the upper limit (e.g. 0.95 = 95%)
+
+        Results
+        -------
+        a: float
+            The modulation amplitude that could produce P>pmeas with 1 - c probability
+
+        Examples
+        --------
+        >>> pds = Powerspectrum()
+        >>> pds.norm = "leahy"
+        >>> pds.freq = np.arange(0, 5)
+        >>> pds.power = np.array([100000, 5, 2, 40, 1])
+        >>> pds.m = 1
+        >>> pds.nphots = 30000
+        >>> aup = pds.modulation_upper_limit(2, 5, 0.99)
+        >>> aup_corr = amplitude_upper_limit(40, 30000, 1, 0.99, nyq_ratio=3/4, fft_corr=True)
+        >>> np.isclose(aup, aup_corr)
+        True
+        >>> pds.norm = "frac"
+        >>> pds.modulation_upper_limit(2, 5, 0.99)
+        Traceback (most recent call last):
+         ...
+        ValueError: Modulation upper limit is only available in the Leahy...
+        """
+
+        # TODO: add case with norm different from Leahy
+        if self.norm != 'leahy':
+            raise ValueError("Modulation upper limit is only available in the Leahy normalization")
+
+        freq = self.freq
+        fnyq = np.max(freq)
+        power = self.power
+        freq_mask = freq > 0
+        if fmin is not None or fmax is not None:
+            if fmin is not None:
+                freq_mask[freq < fmin] = 0
+            if fmax is not None:
+                freq_mask[freq > fmax] = 0
+        freq = freq[freq_mask]
+        power = power[freq_mask]
+
+        maximum_val = np.argmax(power)
+        nyq_ratio = freq[maximum_val] / fnyq
+        return amplitude_upper_limit(
+            power[maximum_val] * self.m, self.nphots, n=self.m, c=c, nyq_ratio=nyq_ratio, fft_corr=True)
 
 
 class AveragedPowerspectrum(AveragedCrossspectrum, Powerspectrum):
