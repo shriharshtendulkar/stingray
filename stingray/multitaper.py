@@ -55,6 +55,12 @@ class Multitaper(Powerspectrum):
         90% spectral concentration within the bandwidth (still using
         a maximum of 2NW tapers)
 
+    lombscargle: boolean, optional, default ``False``
+        Whether to use the Lomb (1976) Scargle (1982) periodogram when
+        calculating the Multitaper spectral estimate. Highly recommended for
+        unevenly sampled time-series. Adaptive weighting and jack-knife
+        estimated variance are yet not supported.
+
     Other Parameters
     ----------------
     gti: 2-d float array
