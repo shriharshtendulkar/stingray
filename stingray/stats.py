@@ -807,7 +807,7 @@ def power_confidence_limits(preal, n=1, c=0.95):
     Other Parameters
     ----------------
     n: int
-        The number of summed powers to obtain pmeas. It can be multiple
+        The number of summed powers to obtain the result. It can be multiple
         harmonics of the PDS, adjacent bins in a PDS summed to collect all the
         power in a QPO, or the n in Z^2_n
     c: float
