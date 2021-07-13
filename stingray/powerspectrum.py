@@ -298,6 +298,7 @@ class Powerspectrum(Crossspectrum):
         a is equivalent to :math:`\sqrt(\sum_l a_l^2)`.
 
         See `stingray.stats.power_upper_limit`, `stingray.stats.amplitude_upper_limit`
+        for more information.
 
         Parameters
         ----------
@@ -305,7 +306,7 @@ class Powerspectrum(Crossspectrum):
             The minimum frequency to search (defaults to the first nonzero bin)
 
         fmax: float
-            The minimum frequency to search (defaults to the Nyquist frequency)
+            The maximum frequency to search (defaults to the Nyquist frequency)
 
         Other Parameters
         ----------------
@@ -321,14 +322,13 @@ class Powerspectrum(Crossspectrum):
         --------
         >>> pds = Powerspectrum()
         >>> pds.norm = "leahy"
-        >>> pds.freq = np.arange(0, 5)
-        >>> pds.power = np.array([100000, 5, 2, 40, 1])
+        >>> pds.freq = np.arange(0., 5.)
+        >>> # Note: this pds has 40 as maximum value between 2 and 5 Hz
+        >>> pds.power = np.array([100000, 1, 1, 40, 1])
         >>> pds.m = 1
         >>> pds.nphots = 30000
-        >>> aup = pds.modulation_upper_limit(2, 5, 0.99)
-        >>> aup_corr = amplitude_upper_limit(40, 30000, 1, 0.99, nyq_ratio=3/4, fft_corr=True)
-        >>> np.isclose(aup, aup_corr)
-        True
+        >>> pds.modulation_upper_limit(fmin=2, fmax=5, c=0.99)
+        0.1016...
         >>> pds.norm = "frac"
         >>> pds.modulation_upper_limit(2, 5, 0.99)
         Traceback (most recent call last):
