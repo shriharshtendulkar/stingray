@@ -788,9 +788,12 @@ def _pavnosigfun(power, nspec):
     return sum
 
 
-def power_confidence_limits(preal, n=1, alpha=0.16):
-    """Confidence limits on power, given a signal power in the PDS/Z search.
+def power_confidence_limits(preal, n=1, c=0.95):
+    """Confidence limits on power, given a (theoretical) signal power.
 
+    This is to be used when we *expect* a given power (e.g. from the pulsed
+    fraction measured in previous observations) and we want to know the
+    range of values the measured power could take to a given confidence level.
     Adapted from Vaughan et al. 1994, noting that, after appropriate
     normalization of the spectral stats, the distribution of powers in the PDS
     and the Z^2_n searches is always described by a noncentral chi squared
@@ -799,7 +802,7 @@ def power_confidence_limits(preal, n=1, alpha=0.16):
     Parameters
     ----------
     preal: float
-        The underlying, signal-generated value of power
+        The theoretical signal-generated value of power
 
     Other Parameters
     ----------------
@@ -807,8 +810,8 @@ def power_confidence_limits(preal, n=1, alpha=0.16):
         The number of summed powers to obtain pmeas. It can be multiple
         harmonics of the PDS, adjacent bins in a PDS summed to collect all the
         power in a QPO, or the n in Z^2_n
-    alpha: float
-        The p-value (e.g. 0.16 = 16% for 1-sigma)
+    c: float
+        The confidence level (e.g. 0.95=95%)
 
     Results
     -------
@@ -817,12 +820,12 @@ def power_confidence_limits(preal, n=1, alpha=0.16):
 
     Examples
     --------
-    >>> cl = power_confidence_limits(150)
+    >>> cl = power_confidence_limits(150, c=0.84)
     >>> np.allclose(cl, [127, 176], atol=1)
     True
     """
     rv = stats.ncx2(2 * n, preal)
-    return rv.ppf([alpha, 1 - alpha])
+    return rv.ppf([1 - c, c])
 
 
 def power_upper_limit(pmeas, n=1, c=0.95):
