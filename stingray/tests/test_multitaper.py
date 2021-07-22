@@ -18,7 +18,7 @@ class TestMultitaper(object):
     @classmethod
     def setup_class(cls):
         tstart = 0.0
-        tend = 1.0
+        tend = 1.484
         dt = 0.0001
 
         time = np.arange(tstart + 0.5*dt, tend + 0.5*dt, dt)
