@@ -282,7 +282,7 @@ class TestMultitaper(object):
         with pytest.warns(UserWarning) as record:
             lc_nonuni = Lightcurve(time=time_irregular,
                                    counts=white_noise_irregular, err_dist="gauss",
-                                   err=np.ones_like(time_irregular) + np.sqrt(0.))  # Because mean is zero for this normal dist
+                                   err=np.ones_like(time_irregular) + np.sqrt(0.))  # Zero mean
         assert np.any(["aren't equal" in r.message.args[0]
                        for r in record])
 
@@ -302,3 +302,13 @@ class TestMultitaper(object):
         assert mtls_white.power_err is not None
         assert mtls_white.jk_var_deg_freedom is None  # Not supported yet
         assert len(mtls_white.eigvals) > 0
+
+    @pytest.mark.parametrize('norm', ["frac", "leahy", "abs", "none"])
+    def test_multitaper_lombscargle_consistency(self, norm):
+
+        mtp = Multitaper(self.lc, adaptive=False, norm=norm)
+        mtp_ls = Multitaper(self.lc, lombscargle=True, adaptive=False, norm=norm)
+
+        # Check if 99% of the points in the PSDs are within the set tolerance
+        assert np.sum(np.isclose(mtp.power[1:], mtp_ls.power,
+                      atol=0.022*np.max(mtp_ls.power))) >= 0.99*mtp_ls.power.size

@@ -720,7 +720,7 @@ class Multitaper(Powerspectrum):
 
         Notes
         -----
-        Dose not currently support adapative weighting or jack-knife estimates.
+        Does not currently support adapative weighting or jack-knife estimates.
         """
 
         lc.apply_gtis()  # Remove bins with missing data
