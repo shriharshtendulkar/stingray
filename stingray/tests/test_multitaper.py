@@ -310,5 +310,12 @@ class TestMultitaper(object):
         mtp_ls = Multitaper(self.lc, lombscargle=True, adaptive=False, norm=norm)
 
         # Check if 99% of the points in the PSDs are within the set tolerance
-        assert np.sum(np.isclose(mtp.power[1:], mtp_ls.power,
+        assert np.sum(np.isclose(mtp.power, mtp_ls.power,
                       atol=0.022*np.max(mtp_ls.power))) >= 0.99*mtp_ls.power.size
+
+        # Check if the freq vals are the same
+        ps = Powerspectrum(self.lc, norm=norm)
+
+        assert np.allclose(mtp.freq, mtp_ls.freq)
+        assert np.allclose(mtp.freq, ps.freq)
+        assert mtp.power.shape == ps.power.shape

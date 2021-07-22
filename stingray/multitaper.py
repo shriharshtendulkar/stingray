@@ -347,7 +347,8 @@ class Multitaper(Powerspectrum):
         if lc.n % 2 == 0:
             freq_response[..., -1] /= np.sqrt(2.)
 
-        freq_multitaper = scipy.fft.rfftfreq(lc.n, d=lc.dt)
+        freq_response = freq_response[..., 1:-1]
+        freq_multitaper = scipy.fft.rfftfreq(lc.n, d=lc.dt)[1:-1]
 
         if adaptive:
             psd_multitaper, weights_multitaper = \
@@ -780,7 +781,7 @@ class Multitaper(Powerspectrum):
 
         # The frequencies rest of Stingray uses
         freq_multitaper_ls = fft.rfftfreq(
-            n=lc.n, d=lc.dt)[1:]  # Avoiding zero
+            n=lc.n, d=lc.dt)[1:-1]  # Avoiding zero
 
         for values in dpss_data_interpolated:
 
