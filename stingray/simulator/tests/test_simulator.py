@@ -163,6 +163,19 @@ class TestSimulator(object):
         assert np.isclose(mean_all, self.mean, rtol=0.1)
         assert np.isclose(std_all/mean_all, self.rms, rtol=0.1)
 
+    def test_rms_zero_mean(self):
+        nsim = 1000
+
+        mean = 0.0
+        sim = Simulator(dt=self.dt, N=self.N, rms=self.rms, mean=mean)
+        lc_all = [sim.simulate(-2.0) for i in range(nsim)]
+
+        mean_all = np.mean([np.mean(lc.counts) for lc in lc_all])
+        std_all = np.mean([np.std(lc.counts) for lc in lc_all])
+
+        assert np.isclose(mean_all, mean, rtol=0.1)
+        assert np.isclose(std_all, self.rms, rtol=0.1)
+
 
     def test_simulate_powerlaw(self):
         """

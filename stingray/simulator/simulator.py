@@ -53,7 +53,6 @@ class Simulator(object):
         self.red_noise = red_noise
         self.tstart = tstart
         self.time = dt*np.arange(N) + self.tstart
-        self.freq = np.fft.rfftfreq(self.N, d=self.dt)[1:]
 
         # Initialize a tuple of energy ranges with corresponding light curves
         self.channels = []
@@ -358,8 +357,8 @@ class Simulator(object):
         self.std = np.sqrt((nphot / (self.N**2.)) * (np.sum(psd[:-1]) + 0.5*psd[-1]))
 
         # Multiply by (1/w)^B to get real and imaginary parts
-        real = a1 * np.sqrt(psd*self.nphot/4)
-        imaginary = a2 * np.sqrt(psd*self.nphot/4)
+        real = a1 * np.sqrt(psd*nphot/4)
+        imaginary = a2 * np.sqrt(psd*nphot/4)
 
         # Obtain time series
         long_lc = self._find_inverse(real, imaginary)
@@ -398,8 +397,8 @@ class Simulator(object):
         a1 = self.random_state.normal(size=len(s))
         a2 = self.random_state.normal(size=len(s))
 
-        real = a1 * self.nphot * np.sqrt(s) / 4.0
-        imaginary = a2 * self.nphot * np.sqrt(s) / 4.0
+        real = a1 * nphot * np.sqrt(s) / 4.0
+        imaginary = a2 * nphot * np.sqrt(s) / 4.0
 
         lc = self._find_inverse(real, imaginary)
         lc = Lightcurve(self.time, self._extract_and_scale(lc),
@@ -438,7 +437,7 @@ class Simulator(object):
             nphot = self.nphot
         self.std = np.sqrt((nphot / (self.N**2.)) * (np.sum(simpsd[:-1]) + 0.5*simpsd[-1]))
 
-        fac = np.sqrt(simpsd) * self.nphot / 4.0
+        fac = np.sqrt(simpsd) * nphot / 4.0
         pos_real   = self.random_state.normal(size=nbins//2)*fac
         pos_imag   = self.random_state.normal(size=nbins//2)*fac
 
@@ -487,7 +486,7 @@ class Simulator(object):
                 nphot = self.nphot
             self.std = np.sqrt((nphot / (self.N**2.)) * (np.sum(simpsd[:-1]) + 0.5*simpsd[-1]))
 
-            fac = np.sqrt(simpsd) * self.nphot / 4.0
+            fac = np.sqrt(simpsd) * nphot / 4.0
             pos_real   = self.random_state.normal(size=nbins//2)*fac
             pos_imag   = self.random_state.normal(size=nbins//2)*fac
 
@@ -599,7 +598,7 @@ class Simulator(object):
         mean_lc = np.mean(lc)
 
         if self.mean == 0:
-            return (lc-mean_lc)/self.std * 0.5*self.rms
+            return (lc-mean_lc)/self.std * self.rms
         else:
             return (lc-mean_lc)/self.std * self.mean * self.rms + self.mean
 
