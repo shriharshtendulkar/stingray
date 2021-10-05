@@ -340,8 +340,19 @@ class Simulator(object):
         a2 = self.random_state.normal(size=len(w))
 
         psd = np.power((1/w),B)
-   
-        self.std = np.sqrt((self.nphot / (self.N**2.)) * (np.sum(psd[:-1]) + 0.5*psd[-1]))
+        if self.nphot == 0:
+            nphot = 1.0
+        else:
+            nphot = self.nphot
+        self.std = np.sqrt((nphot / (self.N**2.)) * (np.sum(psd[:-1]) + 0.5*psd[-1]))
+
+#        print("first term: " + str((self.nphot / (self.N**2.))))
+#        print("sum: " + str((np.sum(psd[:-1]) + 0.5*psd[-1])))  
+#        print("Whole term: " + str(np.sqrt((self.nphot / (self.N**2.)) * (np.sum(psd[:-1]) + 0.5*psd[-1]))))
+  
+#        print("nphot: " + str(self.nphot))
+#        print("N: " + str(self.N)) 
+
 
         # Multiply by (1/w)^B to get real and imaginary parts
         real = a1 * np.sqrt(psd)
@@ -569,10 +580,12 @@ class Simulator(object):
                                           self.red_noise*self.N - self.N+1)
             lc = np.take(long_lc, range(extract, extract + self.N))
 
-        #avg = np.mean(lc)
-        #std = np.std(lc)
+        avg = np.mean(lc)
+        std = np.std(lc)
+        print(f"self.mean: {self.mean}")
+        print(f"self.std: {self.std}")
 
-        return (lc-self.mean)/self.std * self.mean * self.rms + self.mean
+        return (lc-avg)/std * self.mean * self.rms + self.mean
 
     def powerspectrum(self, lc, seg_size=None):
         """
