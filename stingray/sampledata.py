@@ -25,7 +25,8 @@ def sample_data():
 
     # Extract first and second columns to indicate dates and counts respectively
     dates = data[0:len(data), 0]
+    dt = dates[1] - dates[0]
     counts = data[0:len(data), 1]
 
     # Return class:`Lightcurve` object
-    return lightcurve.Lightcurve(dates, counts)
+    return lightcurve.Lightcurve(dates, counts, dt=dt, skip_checks=True)
