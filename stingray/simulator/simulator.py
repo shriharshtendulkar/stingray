@@ -39,6 +39,7 @@ class Simulator(object):
         self.dt = dt
         self.N = N
         self.mean = mean
+        self.nphot = self.mean * self.N
         self.rms = rms
         self.red_noise = red_noise
         self.tstart = tstart
@@ -338,9 +339,13 @@ class Simulator(object):
         a1 = self.random_state.normal(size=len(w))
         a2 = self.random_state.normal(size=len(w))
 
+        psd = np.power((1/w),B)
+   
+        self.std = np.sqrt((self.nphot / (self.N**2.)) * (np.sum(psd[:-1]) + 0.5*psd[-1]))
+
         # Multiply by (1/w)^B to get real and imaginary parts
-        real = a1 * np.power((1/w),B/2)
-        imaginary = a2 * np.power((1/w),B/2)
+        real = a1 * np.sqrt(psd)
+        imaginary = a2 * np.sqrt(psd)
 
         # Obtain time series
         long_lc = self._find_inverse(real, imaginary)
@@ -365,6 +370,8 @@ class Simulator(object):
         """
         # Cast spectrum as numpy array
         s = np.array(s)
+
+        self.std = np.sqrt((self.nphot / (self.N**2.)) * (np.sum(s[:-1]) + 0.5*s[-1]))
 
         self.red_noise = 1
 
@@ -405,6 +412,8 @@ class Simulator(object):
 
         # Compute PSD from model
         simpsd = model(simfreq)
+
+        self.std = np.sqrt((self.nphot / (self.N**2.)) * (np.sum(simpsd[:-1]) + 0.5*simpsd[-1]))
 
         fac = np.sqrt(simpsd)
         pos_real   = self.random_state.normal(size=nbins//2)*fac
@@ -448,6 +457,8 @@ class Simulator(object):
                 simpsd = eval('models.' + model_str + '(simfreq, params)')
             else:
                 raise ValueError('Params should be list or dictionary!')
+
+            self.std = np.sqrt((self.nphot / (self.N**2.)) * (np.sum(simpsd[:-1]) + 0.5*simpsd[-1]))
 
             fac = np.sqrt(simpsd)
             pos_real   = self.random_state.normal(size=nbins//2)*fac
@@ -558,10 +569,10 @@ class Simulator(object):
                                           self.red_noise*self.N - self.N+1)
             lc = np.take(long_lc, range(extract, extract + self.N))
 
-        avg = np.mean(lc)
-        std = np.std(lc)
+        #avg = np.mean(lc)
+        #std = np.std(lc)
 
-        return (lc-avg)/std * self.mean * self.rms + self.mean
+        return (lc-self.mean)/self.std * self.mean * self.rms + self.mean
 
     def powerspectrum(self, lc, seg_size=None):
         """
