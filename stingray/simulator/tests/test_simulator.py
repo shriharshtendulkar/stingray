@@ -19,8 +19,12 @@ class TestSimulator(object):
 
     @classmethod
     def setup_class(self):
-        self.simulator = Simulator(N=1024, mean=0.5, dt=0.125)
-        self.simulator_odd = Simulator(N=2039, mean=0.5, dt=0.125)
+        self.N = 1024
+        self.mean = 0.5
+        self.dt = 0.125
+        self.rms = 1.0
+        self.simulator = Simulator(N=self.N, mean=self.mean, dt=self.dt, rms=self.rms)
+        self.simulator_odd = Simulator(N=2039, mean=self.mean, dt=self.dt, rms=self.rms)
 
     def calculate_lag(self, lc, h, delay):
         """
@@ -42,20 +46,23 @@ class TestSimulator(object):
         """
         Simulate with a random seed value.
         """
-        self.simulator = Simulator(N=1024, random_state=12)
-        assert len(self.simulator.simulate(2).counts), 1024
+        self.simulator = Simulator(N=self.N, mean=self.mean, dt=self.dt, rms=self.rms, 
+                                   random_state=12)
+        assert len(self.simulator.simulate(2).counts), self.N
 
     def test_simulate_with_tstart(self):
         """
         Simulate with a random seed value.
         """
         tstart = 10.0
-        self.simulator = Simulator(N=1024, tstart=tstart)
+        self.simulator = Simulator(N=self.N, mean=self.mean, dt=self.dt, rms=self.rms, 
+                                   tstart=tstart)
         assert self.simulator.time[0] == tstart
 
 
     def test_simulate_with_random_state(self):
-        self.simulator = Simulator(N=1024, random_state=np.random.RandomState(12))
+        self.simulator = Simulator(N=self.N, mean=self.mean, dt=self.dt, rms=self.rms,
+                                   random_state=np.random.RandomState(12))
 
     def test_simulate_with_incorrect_arguments(self):
         with pytest.raises(ValueError):
@@ -137,6 +144,26 @@ class TestSimulator(object):
         with pytest.raises(KeyError):
             self.simulator.delete_channels(['3.5-4.5', '4.5-5.5'])
 
+    def test_init_failure_with_noninteger_N(self):
+        with pytest.raises(ValueError):
+            simulator = Simulator(N=1024.5, mean=self.mean, rms=self.rms, 
+                                  dt=self.dt)
+
+    def test_init_fails_if_arguments_missing(self):
+        with pytest.raises(TypeError):
+            simulator = Simulator()
+
+    def test_rms_and_mean(self):
+        nsim = 1000
+        lc_all = [self.simulator.simulate(-2.0) for i in range(nsim)]
+
+        mean_all = np.mean([np.mean(lc.counts) for lc in lc_all])
+        std_all = np.mean([np.std(lc.counts) for lc in lc_all])
+
+        assert np.isclose(mean_all, self.mean, rtol=0.1)
+        assert np.isclose(std_all/mean_all, self.rms, rtol=0.1)
+
+
     def test_simulate_powerlaw(self):
         """
         Simulate light curve from power law spectrum.
@@ -156,7 +183,7 @@ class TestSimulator(object):
         B, N, red_noise, dt = 2, 1024, 10, 1
 
         self.simulator = Simulator(N=N, dt=dt, mean=5, rms=1,
-                                             red_noise=red_noise)
+                                   red_noise=red_noise)
         lc = [self.simulator.simulate(B) for i in range(1, 30)]
         simulated = self.simulator.powerspectrum(lc, lc[0].tseg)
 
@@ -175,7 +202,7 @@ class TestSimulator(object):
         Simulate light curve from any power spectrum.
         """
         s = np.random.rand(1024)
-        assert len(self.simulator.simulate(s)), 1024
+        assert len(self.simulator.simulate(s)), self.N
 
     def test_simulate_lorentzian(self):
         """
@@ -198,7 +225,7 @@ class TestSimulator(object):
         N, red_noise, dt = 1024, 10, 1
 
         self.simulator = Simulator(N=N, dt=dt, mean=0.1,
-                                             rms=0.4, red_noise=red_noise)
+                                   rms=0.4, red_noise=red_noise)
         lc = [self.simulator.simulate('generalized_lorentzian',
                                       [0.3, 0.9, 0.6, 0.5])
               for i in range(1, 30)]
@@ -227,7 +254,7 @@ class TestSimulator(object):
         N, red_noise, dt = 1024, 10, 1
 
         self.simulator = Simulator(N=N, dt=dt, mean=0.1, rms=0.7,
-                                             red_noise=red_noise)
+                                   red_noise=red_noise)
         lc = [self.simulator.simulate('smoothbknpo', [0.6, 0.2, 0.6, 0.5])
               for i in range(1, 30)]
 
@@ -318,7 +345,7 @@ class TestSimulator(object):
         dt = 0.01
         m = 30000.
 
-        self.simulator = Simulator(N=N, mean=m, dt=dt)
+        self.simulator = Simulator(N=N, mean=m, dt=dt, rms=self.rms)
         smoothbknpo = \
             models.SmoothBrokenPowerLaw(norm=1., gamma_low=1., gamma_high=2.,
                                         break_freq=1.)
@@ -531,14 +558,14 @@ class TestSimulator(object):
         assert np.abs(5-h_cutoffs[1]) < np.sqrt(5)
 
     def test_io(self):
-        sim = Simulator(N=1024)
+        sim = Simulator(N=self.N, dt=self.dt, rms=self.rms, mean=self.mean)
         sim.write('sim.pickle')
         sim = sim.read('sim.pickle')
-        assert sim.N == 1024
+        assert sim.N == self.N
         os.remove('sim.pickle')
 
     def test_io_with_unsupported_format(self):
-        sim = Simulator(N=1024)
+        sim = Simulator(N=self.N, dt=self.dt, rms=self.rms, mean=self.mean)
         with pytest.raises(KeyError):
             sim.write('sim.hdf5', format_='hdf5')
         with pytest.raises(KeyError):
