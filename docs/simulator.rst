@@ -35,19 +35,19 @@ this class class to set the properties of the desired light curve.
 
 The simulator object can be instantiated as::
 
-	>>> sim = simulator.Simulator(N=1024, mean=0.5, dt=0.125)
+	>>> sim = simulator.Simulator(N=1024, mean=0.5, dt=0.125, rms=1.0)
 
 Here, `N` specifies the bins count of the simulated light curve, `mean` specifies
-the mean value, and `dt` is the time resolution. Additional arguments can be
-provided to specify the `rms` of the simulated light curve, or to account for the
-effect of red noise leakage.
+the mean value, `dt` is the time resolution, and `rms` is the fractional rms amplitude, 
+defined as the ratio of standard deviation to the mean.. Additional arguments can be
+provided e.g. to account for the effect of red noise leakage.
 
 Simulate Method
 ---------------
 
 Stingray provides multiple ways to simulate a light curve. However, all these methods follow a common recipe::
 
-  >>> sim = simulator.Simulator(N=1024, mean=0.5, dt=0.125)
+  >>> sim = simulator.Simulator(N=1024, mean=0.5, dt=0.125, rms=1.0)
   >>> lc = sim.simulate(2)
 
 Using Power-Law Spectrum
@@ -66,7 +66,7 @@ When only an integer argument (beta) is provided to the `simulate` method, that 
    from stingray.simulator import simulator
 
    # Instantiate simulator object
-   sim = simulator.Simulator(N=1024, mean=0.5, dt=0.125)
+   sim = simulator.Simulator(N=1024, mean=0.5, dt=0.125, rms=1.0)
    # Specify beta value
    lc = sim.simulate(2)
 
@@ -93,7 +93,7 @@ passed on as a numpy array.
    from stingray.simulator import simulator
 
    # Instantiate simulator object
-   sim = simulator.Simulator(N=1024, mean=0.5, dt=0.125)
+   sim = simulator.Simulator(N=1024, mean=0.5, dt=0.125, rms=1.0)
    # Define a spectrum
    w = np.fft.rfftfreq(sim.N, d=sim.dt)[1:]
    spectrum = np.power((1/w),2/2)
@@ -134,7 +134,7 @@ Here, for the sake of simplicity, we use a simulated impulse response.
    # Obtain a sample light curve
    lc = sampledata.sample_data().counts
    # Instantiate simulator object
-   sim = simulator.Simulator(N=1024, mean=0.5, dt=0.125)
+   sim = simulator.Simulator(N=1024, mean=0.5, dt=0.125, rms=1.0)
    # Obtain an artificial impulse response
    ir = sim.relativistic_ir()
    # Simulate
@@ -153,7 +153,7 @@ Channel Simulation
 
 The `simulator` class provides the functionality to simulate light curves independently for each channel. This is useful, for example, when dealing with energy dependent impulse responses where we can create a di↵erent simulation channel for each energy range. The module provides options to count, retrieve and delete channels.::
 
-  >>> sim = simulator.Simulator(N=1024, mean=0.5, dt=0.125)
+  >>> sim = simulator.Simulator(N=1024, mean=0.5, dt=0.125, rms=1.0)
   >>> sim.simulate_channel('3.5 - 4.5', 2)
   >>> sim.count_channels()
   1
