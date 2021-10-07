@@ -8,7 +8,6 @@ from stingray.lightcurve import Lightcurve
 from astropy.tests.helper import pytest
 np.random.seed(20150907)
 
-
 class DummyVarEnergy(VarEnergySpectrum):
     def _spectrum_function(self):
         return None, None
