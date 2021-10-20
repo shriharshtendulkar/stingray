@@ -158,6 +158,28 @@ def get_gti_extensions_from_pattern(lchdulist, name_pattern="GTI"):
     return gtiextn
 
 
+def hdu_contains_gti(hdu):
+    """Test if a given hdu contains a list of GTIs
+
+    Examples
+    --------
+    >>> from astropy.io import fits
+    >>> start = np.arange(0, 300, 100)
+    >>> stop = start + 50.
+    >>> s1 = fits.Column(name='START', array=start, format='D')
+    >>> s2 = fits.Column(name='STOP', array=stop, format='D')
+    >>> hdu1 = fits.TableHDU.from_columns([s1, s2], name='BLABLA')
+    >>> hdu_contains_gti(hdu1)
+    True
+    >>> s2 = fits.Column(name='blabla', array=stop, format='D')
+    >>> hdu1 = fits.TableHDU.from_columns([s1, s2], name='BLABLA')
+    >>> hdu_contains_gti(hdu1)
+    False
+    """
+    colnames = [c.lower() for c in hdu.data.columns.names]
+    return "start" in colnames and "stop" in colnames
+
+
 def get_gti_from_hdu(gtihdu):
     """Get the GTIs from a given extension.
 
