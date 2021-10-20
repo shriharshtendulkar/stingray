@@ -621,8 +621,9 @@ def load_events_and_gtis(
 
     detector_id = None
     ckey = get_key_from_mission_info(db, "ccol", "NONE", instr, mode)
-    if ckey != "NONE":
+    if ckey != "NONE" and ckey in datatable.columns.names:
         detector_id = datatable.field(ckey)
+
     det_number = None if detector_id is None else list(set(detector_id))
 
     timezero = np.longdouble(0.)
