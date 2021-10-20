@@ -155,7 +155,8 @@ def fftfit(prof, template):
     # Finally, we use the BRENTQ method to find the best estimate of tau in the
     # interval around the approximate solution
     shift, res = brentq(func_to_minimize, a, b, full_output=True)
-
+    # print(shift, normalize_phase_0d5(shift))
+    shift = normalize_phase_0d5(shift)
     nmax = ngood
     good = slice(1, nmax)
 
@@ -172,7 +173,7 @@ def fftfit(prof, template):
 
     eb = sigma**2 / (2 * np.sum(S[good]**2))
 
-    return b, np.sqrt(eb), normalize_phase_0d5(shift), np.sqrt(eshift)
+    return b, np.sqrt(eb), shift, np.sqrt(eshift)
 
 
 def normalize_phase_0d5(phase):
