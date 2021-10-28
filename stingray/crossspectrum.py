@@ -1295,14 +1295,16 @@ class AveragedCrossspectrum(Crossspectrum):
                                               norm='none', gti=self.gti,
                                               power_type=self.power_type,
                                               dt=self.dt, fullspec=self.fullspec,
-                                              save_all=self.save_all)
+                                              save_all=self.save_all,
+                                              silent=not self.show_progress)
 
             self.pds2 = AveragedCrossspectrum(lc2, lc2,
                                               segment_size=self.segment_size,
                                               norm='none', gti=self.gti,
                                               power_type=self.power_type,
                                               dt=self.dt, fullspec=self.fullspec,
-                                              save_all=self.save_all)
+                                              save_all=self.save_all,
+                                              silent=not self.show_progress)
 
     def _make_segment_spectrum(self, lc1, lc2, segment_size, silent=False):
         """
