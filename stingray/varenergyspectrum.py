@@ -332,7 +332,7 @@ class RmsEnergySpectrum(VarEnergySpectrum):
             try:
                 xspect = AveragedCrossspectrum(base_lc, ref_lc,
                                                segment_size=self.segment_size,
-                                               norm='abs', silent=True)
+                                               norm='frac', silent=True)
             except AssertionError as e:
                 # Avoid "Mean count rate is <= 0. Something went wrong" assertion.
                 simon("AssertionError: " + str(e))
@@ -408,47 +408,24 @@ class CovarianceSpectrum(VarEnergySpectrum):
     def __init__(self, events, energy_spec, ref_band=None,
                  bin_time=1, use_pi=False, segment_size=None, events2=None):
 
-        self.events1 = events
-        self.events2 = assign_value_if_none(events2, events)
-        self.use_pi = use_pi
-        self.bin_time = bin_time
-        if isinstance(energy_spec, tuple):
-            energies = _decode_energy_specification(energy_spec)
-        else:
-            energies = np.asarray(energy_spec)
-
-        self.energy_intervals = list(zip(energies[0: -1], energies[1:]))
-
-        self.ref_band = np.asarray(assign_value_if_none(ref_band,
-                                                        [0, np.inf]))
-        self.show_progress = False
-        if len(self.ref_band.shape) <= 1:
-            self.ref_band = np.asarray([self.ref_band])
-
-        self.segment_size = segment_size
-
-        if len(events.time) == 0:
-            simon("There are no events in your event list!" +
-                  "Can't make a spectrum!")
-            self.spectrum = 0
-            self.spectrum_error = 0
-        else:
-            self.spectrum, self.spectrum_error = self._spectrum_function()
+        VarEnergySpectrum.__init__(self, events, None, energy_spec,
+                                   bin_time=bin_time, use_pi=use_pi,
+                                   ref_band=ref_band,
+                                   segment_size=segment_size, events2=events2)
 
     def _spectrum_function(self):
 
         spec = np.zeros(len(self.energy_intervals))
         spec_err = np.zeros_like(spec)
 
-        for i, eint in show_progress(enumerate(self.energy_intervals)):
+        for i, eint in enumerate(show_progress(self.energy_intervals)):
             base_lc, ref_lc = self._construct_lightcurves(eint, exclude=True)
 
             cov, cov_e = self.calculate_cov(base_lc, ref_lc,
                                             segment_size=self.segment_size)
 
-            #             ncounts = np.sum(base_lc.counts) + np.sum(ref_lc.counts)
-            spec[i] = cov  # / ncounts
-            spec_err[i] = cov_e  # / ncounts
+            spec[i] = cov
+            spec_err[i] = cov_e
 
         return spec, spec_err
 
@@ -688,32 +665,10 @@ class CountSpectrum(VarEnergySpectrum):
     def __init__(self, events, energy_spec, ref_band=None,
                  bin_time=1, use_pi=False, segment_size=None, events2=None):
 
-        self.events1 = events
-        self.events2 = assign_value_if_none(events2, events)
-        self.use_pi = use_pi
-        self.bin_time = bin_time
-        if isinstance(energy_spec, tuple):
-            energies = _decode_energy_specification(energy_spec)
-        else:
-            energies = np.asarray(energy_spec)
-
-        self.energy_intervals = list(zip(energies[0: -1], energies[1:]))
-
-        self.ref_band = np.asarray(assign_value_if_none(ref_band,
-                                                        [0, np.inf]))
-        self.show_progress = False
-        if len(self.ref_band.shape) <= 1:
-            self.ref_band = np.asarray([self.ref_band])
-
-        self.segment_size = segment_size
-
-        if len(events.time) == 0:
-            simon("There are no events in your event list!" +
-                  "Can't make a spectrum!")
-            self.spectrum = 0
-            self.spectrum_error = 0
-        else:
-            self.spectrum, self.spectrum_error = self._spectrum_function()
+        VarEnergySpectrum.__init__(self, events, None, energy_spec,
+                                   bin_time=bin_time, use_pi=use_pi,
+                                   ref_band=ref_band,
+                                   segment_size=segment_size, events2=events2)
 
     def _spectrum_function(self):
 
