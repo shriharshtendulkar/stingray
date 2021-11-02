@@ -1546,7 +1546,7 @@ class AveragedCrossspectrum(Crossspectrum):
 
         # Calculate uncertainty
         uncertainty = \
-            (2 ** 0.5 * coh * (1 - coh)) / (np.abs(coh) * self.m ** 0.5)
+            (2 ** 0.5 * coh * (1 - coh)) / (np.sqrt(coh) * self.m ** 0.5)
 
         uncertainty[coh == 0] = 0.0
 
