@@ -27,6 +27,50 @@ __all__ = ["Lightcurve"]
 valid_statistics = ["poisson", "gauss", None]
 
 
+def check_and_synchronize_lcs(lc1, lc2):
+    """Check that two light curves have the same tseg, bin time, etc.
+
+    Examples
+    --------
+    >>> lc1 = Lightcurve(time=[0, 1, 2], counts=[4, 5, 6], gti=[[0.5, 2.5]],
+    ...                  dt=1, err_dist="poisson", skip_checks=True)
+    >>> lc2 = Lightcurve(time=[0, 1], counts=[4, 4], gti=[[0.5, 1.5]],
+    ...                  dt=1, err_dist="poisson", skip_checks=True)
+    >>> lc3 = Lightcurve(time=[0, 1.1], counts=[4, 4], gti=[[0.5, 1.5]],
+    ...                  dt=1.1, err_dist="poisson", skip_checks=True)
+    >>> lcfilt1, lcfilt2 = check_and_synchronize_lcs(lc1, lc2)
+     ...Lightcurves do not have same tseg...
+    >>> np.allclose(lcfilt1.gti, [[0.5, 1.5]])
+    True
+    >>> check_and_synchronize_lcs(lc1, lc3)
+    Traceback (most recent call last):
+     ...
+    ValueError: Light curves do not have same time binning dt.
+    """
+
+    assert isinstance(lc1, Lightcurve)
+    assert isinstance(lc2, Lightcurve)
+
+    if lc1.tseg != lc2.tseg:
+        simon("Lightcurves do not have same tseg. This means that the data"
+              "from the two channels are not completely in sync. This "
+              "might or might not be an issue. Keep an eye on it.")
+
+    # If dt differs slightly, its propagated error must not be more than
+    # 1/100th of the bin
+    if not np.isclose(lc1.dt, lc2.dt, rtol=0.01 * lc1.dt / lc1.tseg):
+        raise ValueError("Light curves do not have same time binning dt.")
+
+    # In case a small difference exists, ignore it
+    lc1.dt = lc2.dt
+
+    current_gtis = cross_two_gtis(lc1.gti, lc2.gti)
+    lc1.gti = lc2.gti = current_gtis
+    lc1.apply_gtis()
+    lc2.apply_gtis()
+    return lc1, lc2
+
+
 class Lightcurve(object):
     """
     Make a light curve object from an array of time stamps and an
