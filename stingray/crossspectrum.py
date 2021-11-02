@@ -1488,7 +1488,6 @@ class AveragedCrossspectrum(Crossspectrum):
         power_avg /= float(m)
         power_err_avg = np.sqrt(power_err_avg) / m
         unnorm_power_avg /= float(m)
-
         self.freq = cs_all[0].freq
         self.power = power_avg
         self.unnorm_power = unnorm_power_avg
