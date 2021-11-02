@@ -524,6 +524,45 @@ class EventList(object):
         except TypeError:
             ts.write(filename, format=format_, overwrite=True)
 
+    def filter_energy_range(self, energy_range, inplace=False, use_pi=False):
+        """Filter the event list from a given energy range.
+
+        Parameters
+        ----------
+        energy_range: [float, float]
+            Energy range in keV, or in PI channel (if ``use_pi`` is True)
+
+        Other Parameters
+        ----------------
+        inplace : bool, default False
+            Do the change in place (modify current event list). Otherwise, copy
+            to a new event list.
+        use_pi : bool, default False
+            Use PI channel instead of energy in keV
+
+        Examples
+        --------
+        >>> events = EventList(time=[0, 1, 2], energy=[0.3, 0.5, 2], pi=[3, 5, 20])
+        >>> e1 = events.filter_energy_range([0, 1])
+        >>> np.allclose(e1.time, [0, 1])
+        True
+        >>> np.allclose(events.time, [0, 1, 2])
+        True
+        >>> e2 = events.filter_energy_range([0, 10], use_pi=True, inplace=True)
+        >>> np.allclose(e2.time, [0, 1])
+        True
+        >>> np.allclose(events.time, [0, 1])
+        True
+
+        """
+        if use_pi:
+            energies = self.pi
+        else:
+            energies = self.energy
+        mask = (energies >= energy_range[0]) & (energies < energy_range[1])
+
+        return self.apply_mask(mask, inplace=inplace)
+
     def apply_mask(self, mask, inplace=False):
         """Apply mask to all same-length list-like event attributes.
 
