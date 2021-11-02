@@ -150,6 +150,17 @@ class VarEnergySpectrum(object):
         else:
             self.spectrum, self.spectrum_error = self._spectrum_function()
 
+    def _get_events_from_energy_range(self, events, erange):
+        energies = events.energy
+        mask = (energies >= erange[0]) & (energies < erange[1])
+
+        return events.apply_mask(mask)
+
+    def _get_times_from_energy_range(self, events, erange):
+        energies = events.energy
+        mask = (energies >= erange[0]) & (energies < erange[1])
+        return events.time[mask]
+
     def _decide_ref_intervals(self, channel_band, ref_band):
         """
         Ensures that the ``channel_band`` (i.e. the band of interest) is
@@ -771,3 +782,112 @@ class LagEnergySpectrum(VarEnergySpectrum):
                     np.sqrt(np.sum(good_lag_err**2) / len(good_lag))
 
         return lag_spec, lag_spec_err
+
+
+class ComplexCovarianceSpectrum(VarEnergySpectrum):
+    """Calculate the covariance spectrum.
+
+    For each energy interval, calculate the covariance between two bands.
+    If ``events2`` is specified, the energy bands are chosen from this second
+    event list, while the reference band from ``events``.
+
+    Parameters
+    ----------
+    events : :class:`stingray.events.EventList` object
+        event list
+
+    freq_interval : ``[f0, f1]``, list of float
+        the frequency range over which calculating the variability quantity
+
+    energy_spec : list or tuple ``(emin, emax, N, type)``
+        if a ``list`` is specified, this is interpreted as a list of bin edges;
+        if a ``tuple`` is provided, this will encode the minimum and maximum
+        energies, the number of intervals, and ``lin`` or ``log``.
+
+    Other Parameters
+    ----------------
+    ref_band : ``[emin, emax]``, float; default ``None``
+        minimum and maximum energy of the reference band. If ``None``, the
+        full band is used.
+
+    use_pi : bool, default ``False``
+        Use channel instead of energy
+
+    events2 : :class:`stingray.events.EventList` object
+        event list for the second channel, if not the same. Useful if the
+        reference band has to be taken from another detector.
+
+    Attributes
+    ----------
+    events1 : array-like
+        list of events used to produce the spectrum
+
+    events2 : array-like
+        if the spectrum requires it, second list of events
+
+    freq_interval : array-like
+        interval of frequencies used to calculate the spectrum
+
+    energy_intervals : ``[[e00, e01], [e10, e11], ...]``
+        energy intervals used for the spectrum
+
+    spectrum : array-like
+        the spectral values, corresponding to each energy interval
+
+    spectrum_error : array-like
+        the errorbars corresponding to spectrum
+    """
+
+    def __init__(self, events, energy_spec, ref_band=None,
+                 bin_time=1, use_pi=False, segment_size=None, events2=None):
+
+        VarEnergySpectrum.__init__(self, events, None, energy_spec,
+                                   bin_time=bin_time, use_pi=use_pi,
+                                   ref_band=ref_band,
+                                   segment_size=segment_size, events2=events2)
+
+    def _spectrum_function(self):
+
+        spec = np.zeros(len(self.energy_intervals))
+        spec_err = np.zeros_like(spec)
+
+        for i, eint in enumerate(show_progress(self.energy_intervals)):
+            base_lc, ref_lc = self._construct_lightcurves(eint, exclude=True)
+
+            cov, cov_e = self.calculate_cov(base_lc, ref_lc,
+                                            segment_size=self.segment_size)
+
+            spec[i] = cov
+            spec_err[i] = cov_e
+
+        return spec, spec_err
+
+    def calculate_cov(self, lc1, lc2, segment_size):
+        """
+        Split the light curves into segments of size ``segment_size``, and calculate a cross spectrum for
+        each.
+
+        Parameters
+        ----------
+        lc1, lc2 : :class:`stingray.Lightcurve` objects
+            Two light curves used for computing the cross spectrum.
+
+        segment_size : ``numpy.float``
+            Size of each light curve segment to use for averaging.
+
+        Other parameters
+        ----------------
+        silent : bool, default False
+            Suppress progress bars
+
+        Returns
+        -------
+        cs_all : list of :class:`Crossspectrum`` objects
+            A list of cross spectra calculated independently from each light curve segment
+
+        nphots1_all, nphots2_all : ``numpy.ndarray` for each of ``lc1`` and ``lc2``
+            Two lists containing the number of photons for all segments calculated from ``lc1`` and ``lc2``.
+
+        """
+        pass
+
