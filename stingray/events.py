@@ -539,13 +539,19 @@ class EventList(object):
         >>> evt is newev1
         True
         """
+        array_attrs = ['time', 'energy', 'pi', 'cal_pi']
         if inplace:
             new_ev = self
         else:
-            new_ev = copy.deepcopy(self)
-        for attr in 'time', 'energy', 'pi', 'cal_pi':
-            if hasattr(new_ev, attr) and getattr(new_ev, attr) is not None:
-                setattr(new_ev, attr, getattr(new_ev, attr)[mask])
+            new_ev = EventList()
+            for attr in dir(self):
+                if not attr.startswith("_") and attr not in array_attrs:
+                    setattr(new_ev, attr, getattr(self, attr))
+
+        for attr in array_attrs:
+            if hasattr(self, attr) and getattr(self, attr) is not None:
+                setattr(new_ev, attr, getattr(self, attr)[mask])
+
         return new_ev
 
     def apply_deadtime(self, deadtime, inplace=False, **kwargs):
