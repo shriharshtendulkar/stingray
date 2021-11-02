@@ -22,11 +22,7 @@ try:
 except ImportError:
     from scipy.special import factorial
 
-try:
-    from pyfftw.interfaces.scipy_fft import fft, fftfreq
-except ImportError:
-    warnings.warn("pyfftw not installed. Using standard scipy fft")
-    from scipy.fft import fft, fftfreq
+from .fourier import fftfreq, fft
 
 __all__ = [
     "Crossspectrum", "AveragedCrossspectrum", "coherence", "time_lag",
@@ -1488,6 +1484,7 @@ class AveragedCrossspectrum(Crossspectrum):
         power_avg /= float(m)
         power_err_avg = np.sqrt(power_err_avg) / m
         unnorm_power_avg /= float(m)
+
         self.freq = cs_all[0].freq
         self.power = power_avg
         self.unnorm_power = unnorm_power_avg
