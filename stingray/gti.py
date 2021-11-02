@@ -16,10 +16,71 @@ __all__ = ['load_gtis', 'check_gtis',
            'create_gti_mask_complete', 'create_gti_from_condition',
            'cross_two_gtis', 'cross_gtis', 'get_btis',
            'get_gti_extensions_from_pattern', 'get_gti_from_all_extensions',
-           'get_gti_from_hdu', 'gti_len',
+           'get_gti_from_hdu', 'get_gti_lengths', 'get_total_gti_length',
            'check_separate', 'append_gtis', 'join_gtis',
            'time_intervals_from_gtis', 'bin_intervals_from_gtis',
            'gti_border_bins']
+
+
+def gti_len(gti):
+    """Deprecated. Use get_total_gti_length."""
+    warnings.warn("This function is deprecated. Use get_total_gti_length instead",
+                  DeprecationWarning)
+    gti = np.array(gti)
+    return np.sum(gti[:, 1] - gti[:, 0])
+
+
+def get_gti_lengths(gti):
+    """Calculate the length of each Good Time Interval.
+
+    Parameters
+    ----------
+    gti : [[gti00, gti01], [gti10, gti11], ...]
+        The list of good time intervals
+
+    Returns
+    -------
+    lengths : `np.ndarray`
+        List of GTI lengths
+
+    Examples
+    --------
+    >>> gti = [[0, 1000], [1000, 1001], [3000, 3020]]
+    >>> np.allclose(get_gti_lengths(gti), [1000, 1, 20])
+    True
+    """
+    return np.diff(gti, axis=1).flatten()
+
+
+# For API compatibility
+gti_len = get_gti_lengths
+
+
+def get_total_gti_length(gti, minlen=0):
+    """Calculate the total exposure during Good Time Intervals.
+
+    Parameters
+    ----------
+    gti : [[gti00, gti01], [gti10, gti11], ...]
+        The list of good time intervals
+    minlen : float
+        Minimum GTI length to consider
+
+    Returns
+    -------
+    length : float
+        total exposure during GTIs
+
+    Examples
+    --------
+    >>> gti = [[0, 1000], [1000, 1001], [3000, 3020]]
+    >>> get_total_gti_length(gti)
+    1021
+    >>> get_total_gti_length(gti, minlen=5)
+    1020
+    """
+    lengths = get_gti_lengths(gti)
+    return np.sum(lengths[lengths >= minlen])
 
 
 def load_gtis(fits_file, gtistring=None):
@@ -730,25 +791,6 @@ def get_btis(gtis, start_time=None, stop_time=None):
         btis.extend([[gtis[-1][1],  stop_time]])
 
     return np.asarray(btis)
-
-
-def gti_len(gti):
-    """
-    Return the total good time from a list of GTIs.
-
-    Parameters
-    ----------
-    gti : iterable
-        A list of Good Time Intervals
-
-    Returns
-    -------
-    gti_len : float
-        The sum of lengths of all GTIs
-
-    """
-    gti = np.array(gti)
-    return np.sum(gti[:, 1] - gti[:, 0])
 
 
 @jit(nopython=True)
