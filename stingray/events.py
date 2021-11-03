@@ -137,7 +137,7 @@ class EventList(object):
         self.dt = dt
         self.mjdref = mjdref
         self.gti = np.asarray(gti) if gti is not None else None
-        self.pi = pi
+        self.pi = None if pi is None else np.asarray(pi)
         self.ncounts = ncounts
         self.mission = mission
         self.instr = instr
