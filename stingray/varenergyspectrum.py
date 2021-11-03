@@ -566,21 +566,22 @@ class LagSpectrum(VarEnergySpectrum):
     spectrum_error : array-like
         the errorbars corresponding to spectrum
     """
-
-    def __init__(self, events, energy_spec, ref_band=None,
-                 freq_interval=[0, 1],
+    # events, freq_interval, energy_spec, ref_band = None
+    def __init__(self, events, freq_interval, energy_spec, ref_band=None,
                  bin_time=1, use_pi=False, segment_size=None, events2=None):
 
-        VarEnergySpectrum.__init__(self, events, freq_interval, energy_spec,
+        VarEnergySpectrum.__init__(self, events, freq_interval,
+                                   energy_spec=energy_spec,
                                    bin_time=bin_time, use_pi=use_pi,
                                    ref_band=ref_band,
                                    segment_size=segment_size, events2=events2)
 
     def _spectrum_function(self):
         events1 = self.events1
+        events2 = self.events2
         common_gti = events1.gti
-        if self.events2 is None or self.events2 is self.events1:
-            events2 = self.events1
+        if events2 is None or events2 is events1:
+            events2 = events1
             same_events = True
         else:
             common_gti = cross_two_gtis(events1.gti, events2.gti)
@@ -588,7 +589,6 @@ class LagSpectrum(VarEnergySpectrum):
 
         spec = np.zeros(len(self.energy_intervals))
         spec_err = np.zeros_like(spec)
-        df = 1 / self.segment_size
 
         ref_events = self._get_times_from_energy_range(events2,
                                                        self.ref_band[0])
@@ -629,9 +629,9 @@ class LagSpectrum(VarEnergySpectrum):
                 common_ref=common_ref)
 
             lag = np.angle(Cmean) / (2 * np.pi * f)
-
+            lag_e = phi_e / (2 * np.pi * f)
             spec[i] = lag
-            spec_err[i] = phi_e / (2 * np.pi * f)
+            spec_err[i] = lag_e
 
         return spec, spec_err
 

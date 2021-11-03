@@ -177,7 +177,7 @@ class TestLagEnergySpectrum(object):
     def setup_class(cls):
         from ..simulator import Simulator
         dt = 0.1
-        simulator = Simulator(dt, 1000, rms=0.4, mean=200)
+        simulator = Simulator(dt, 1000, rms=0.4, mean=1000)
         test_lc1 = simulator.simulate(2)
         test_lc2 = Lightcurve(test_lc1.time,
                               np.array(np.roll(test_lc1.counts, 2)),
@@ -192,12 +192,11 @@ class TestLagEnergySpectrum(object):
 
         cls.lag = LagEnergySpectrum(test_ev1, [0., 0.5],
                                     (0.3, 9, 4, "lin"), [9, 12],
-                                    bin_time=0.1,
+                                    bin_time=0.01,
                                     segment_size=30,
                                     events2=test_ev2)
 
     def test_lagspectrum_values_and_errors(self):
-
         assert np.all(np.abs(self.lag.spectrum - 0.2) < \
                       3 * self.lag.spectrum_error)
 
