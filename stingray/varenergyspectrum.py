@@ -1,15 +1,17 @@
 
 import numpy as np
 import warnings
-from stingray.gti import check_separate, cross_two_gtis, create_gti_mask, check_gtis, bin_intervals_from_gtis
+from stingray.gti import check_separate, cross_two_gtis, create_gti_mask, check_gtis, bin_intervals_from_gtis, get_total_gti_length
 from stingray.lightcurve import Lightcurve
-from stingray.utils import assign_value_if_none, simon, excess_variance, show_progress
+from stingray.utils import assign_value_if_none, simon, excess_variance, show_progress,equal_count_energy_ranges
 from stingray.crossspectrum import AveragedCrossspectrum
+from stingray.fourier import avg_cs_from_events, avg_pds_from_events
+from stingray.fourier import poisson_level, error_on_cross_spectrum, cross_to_covariance
 from abc import ABCMeta, abstractmethod
 import six
 
 
-__all__ = ["VarEnergySpectrum", "RmsEnergySpectrum", "LagEnergySpectrum", "ExcessVarianceSpectrum", "CovarianceSpectrum", "CountSpectrum"]
+__all__ = ["VarEnergySpectrum", "RmsEnergySpectrum", "LagEnergySpectrum", "LagSpectrum", "ExcessVarianceSpectrum", "CovarianceSpectrum", "ComplexCovarianceSpectrum", "CountSpectrum"]
 
 
 def _decode_energy_specification(energy_spec):
@@ -362,191 +364,6 @@ class RmsEnergySpectrum(VarEnergySpectrum):
         return rms_spec, rms_spec_err
 
 
-class CovarianceSpectrum(VarEnergySpectrum):
-    """Calculate the covariance spectrum.
-
-    For each energy interval, calculate the covariance between two bands.
-    If ``events2`` is specified, the energy bands are chosen from this second
-    event list, while the reference band from ``events``.
-
-    Parameters
-    ----------
-    events : :class:`stingray.events.EventList` object
-        event list
-
-    freq_interval : ``[f0, f1]``, list of float
-        the frequency range over which calculating the variability quantity
-
-    energy_spec : list or tuple ``(emin, emax, N, type)``
-        if a ``list`` is specified, this is interpreted as a list of bin edges;
-        if a ``tuple`` is provided, this will encode the minimum and maximum
-        energies, the number of intervals, and ``lin`` or ``log``.
-
-    Other Parameters
-    ----------------
-    ref_band : ``[emin, emax]``, float; default ``None``
-        minimum and maximum energy of the reference band. If ``None``, the
-        full band is used.
-
-    use_pi : bool, default ``False``
-        Use channel instead of energy
-
-    events2 : :class:`stingray.events.EventList` object
-        event list for the second channel, if not the same. Useful if the
-        reference band has to be taken from another detector.
-
-    Attributes
-    ----------
-    events1 : array-like
-        list of events used to produce the spectrum
-
-    events2 : array-like
-        if the spectrum requires it, second list of events
-
-    freq_interval : array-like
-        interval of frequencies used to calculate the spectrum
-
-    energy_intervals : ``[[e00, e01], [e10, e11], ...]``
-        energy intervals used for the spectrum
-
-    spectrum : array-like
-        the spectral values, corresponding to each energy interval
-
-    spectrum_error : array-like
-        the errorbars corresponding to spectrum
-    """
-
-    def __init__(self, events, energy_spec, ref_band=None,
-                 bin_time=1, use_pi=False, segment_size=None, events2=None):
-
-        VarEnergySpectrum.__init__(self, events, None, energy_spec,
-                                   bin_time=bin_time, use_pi=use_pi,
-                                   ref_band=ref_band,
-                                   segment_size=segment_size, events2=events2)
-
-    def _spectrum_function(self):
-
-        spec = np.zeros(len(self.energy_intervals))
-        spec_err = np.zeros_like(spec)
-
-        for i, eint in enumerate(show_progress(self.energy_intervals)):
-            base_lc, ref_lc = self._construct_lightcurves(eint, exclude=True)
-
-            cov, cov_e = self.calculate_cov(base_lc, ref_lc,
-                                            segment_size=self.segment_size)
-
-            spec[i] = cov
-            spec_err[i] = cov_e
-
-        return spec, spec_err
-
-    def calculate_cov(self, lc1, lc2, segment_size):
-        """
-        Split the light curves into segments of size ``segment_size``, and calculate a cross spectrum for
-        each.
-
-        Parameters
-        ----------
-        lc1, lc2 : :class:`stingray.Lightcurve` objects
-            Two light curves used for computing the cross spectrum.
-
-        segment_size : ``numpy.float``
-            Size of each light curve segment to use for averaging.
-
-        Other parameters
-        ----------------
-        silent : bool, default False
-            Suppress progress bars
-
-        Returns
-        -------
-        cs_all : list of :class:`Crossspectrum`` objects
-            A list of cross spectra calculated independently from each light curve segment
-
-        nphots1_all, nphots2_all : ``numpy.ndarray` for each of ``lc1`` and ``lc2``
-            Two lists containing the number of photons for all segments calculated from ``lc1`` and ``lc2``.
-
-        """
-
-        assert isinstance(lc1, Lightcurve)
-        assert isinstance(lc2, Lightcurve)
-
-        if lc1.tseg != lc2.tseg:
-            simon("Lightcurves do not have same tseg. This means that the data"
-                  "from the two channels are not completely in sync. This "
-                  "might or might not be an issue. Keep an eye on it.")
-
-        # If dt differs slightly, its propagated error must not be more than
-        # 1/100th of the bin
-        if not np.isclose(lc1.dt, lc2.dt, rtol=0.01 * lc1.dt / lc1.tseg):
-            raise ValueError("Light curves do not have same time binning dt.")
-
-        # In case a small difference exists, ignore it
-        lc1.dt = lc2.dt
-
-        current_gtis = cross_two_gtis(lc1.gti, lc2.gti)
-        lc1.gti = lc2.gti = current_gtis
-        lc1.apply_gtis()
-        lc2.apply_gtis()
-
-        check_gtis(current_gtis)
-
-        cov_all = []
-        exc_x_all = []
-        exc_y_all = []
-        var_x_all = []
-        var_y_all = []
-
-        start_inds, end_inds = \
-            bin_intervals_from_gtis(current_gtis, segment_size, lc1.time,
-                                    dt=lc1.dt)
-        simon("Errorbars on cross spectra are not thoroughly tested. "
-              "Please report any inconsistencies.")
-
-        N = np.rint(segment_size / lc1.dt)
-        for start_ind, end_ind in zip(start_inds, end_inds):
-            counts_1 = lc1.counts[start_ind:end_ind]
-            counts_2 = lc2.counts[start_ind:end_ind]
-            if np.sum(counts_1) == 0 or np.sum(counts_2) == 0:
-                warnings.warn(
-                    "No counts in interval {}--{}s".format(lc1.time[start_ind],
-                                                           lc1.time[end_ind]))
-                N = N - 1
-                continue
-
-            excv_y = self.excess_variance(counts_2)
-
-            exc_x_all.append(self.excess_variance(counts_1))
-            exc_y_all.append(excv_y)
-            var_x_all.append(np.var(counts_1))
-            var_y_all.append(np.var(counts_2))
-            c1 = np.mean(counts_1)
-            c2 = np.mean(counts_2)
-
-            cov = np.sum((counts_1 - c1) * (counts_2 - c2)) / (
-                        N - 1) / np.sqrt(excv_y)
-            cov_all.append(cov)
-
-        M = len(cov_all)
-
-        cov = np.mean(cov_all)
-        exc_x = np.mean(exc_x_all)
-        exc_y = np.mean(exc_y_all)
-        var_x = np.mean(var_x_all)
-        var_y = np.mean(var_y_all)
-
-        num = exc_x * var_y + exc_y * var_x + var_x * var_y
-        den = N * M * exc_y
-        cov_e = np.sqrt(num / den)
-        return cov * lc1.dt, cov_e * lc1.dt
-
-    def excess_variance(self, counts):
-        lc_mean_var = np.mean(counts)
-        lc_actual_var = np.var(counts)
-        var_xs = lc_actual_var - lc_mean_var
-        return var_xs
-
-
 class ExcessVarianceSpectrum(VarEnergySpectrum):
     """Calculate the Excess Variance spectrum.
 
@@ -682,26 +499,26 @@ class CountSpectrum(VarEnergySpectrum):
                                    segment_size=segment_size, events2=events2)
 
     def _spectrum_function(self):
-
+        events = self.events1
         spec = np.zeros(len(self.energy_intervals))
         spec_err = np.zeros_like(spec)
 
         for i, eint in show_progress(enumerate(self.energy_intervals)):
-            lc = self._construct_lightcurves(eint, exclude=False,
-                                             only_base=True)
-            sp = np.sum(lc.counts)
-            spec[i] = sp / lc.counts.size
-            spec_err[i] = np.sqrt(sp) / lc.counts.size
+            sub_events = self._get_times_from_energy_range(events, eint)
 
-        return spec * self.bin_time, spec_err * self.bin_time
+            sp = sub_events.size
+            spec[i] = sp
+            spec_err[i] = np.sqrt(sp)
+
+        return spec, spec_err
 
 
-class LagEnergySpectrum(VarEnergySpectrum):
-    """Calculate the lag-energy spectrum.
+class LagSpectrum(VarEnergySpectrum):
+    """Calculate the covariance spectrum.
 
-    For each energy interval, calculate the mean lag in the specified frequency
-    range. If ``events2`` is specified, the reference band is taken from the second
-    event list.
+    For each energy interval, calculate the covariance between two bands.
+    If ``events2`` is specified, the energy bands are chosen from this second
+    event list, while the reference band from ``events``.
 
     Parameters
     ----------
@@ -712,8 +529,8 @@ class LagEnergySpectrum(VarEnergySpectrum):
         the frequency range over which calculating the variability quantity
 
     energy_spec : list or tuple ``(emin, emax, N, type)``
-        if a list is specified, this is interpreted as a list of bin edges;
-        if a tuple is provided, this will encode the minimum and maximum
+        if a ``list`` is specified, this is interpreted as a list of bin edges;
+        if a ``tuple`` is provided, this will encode the minimum and maximum
         energies, the number of intervals, and ``lin`` or ``log``.
 
     Other Parameters
@@ -749,39 +566,77 @@ class LagEnergySpectrum(VarEnergySpectrum):
     spectrum_error : array-like
         the errorbars corresponding to spectrum
     """
+
+    def __init__(self, events, energy_spec, ref_band=None,
+                 freq_interval=[0, 1],
+                 bin_time=1, use_pi=False, segment_size=None, events2=None):
+
+        VarEnergySpectrum.__init__(self, events, freq_interval, energy_spec,
+                                   bin_time=bin_time, use_pi=use_pi,
+                                   ref_band=ref_band,
+                                   segment_size=segment_size, events2=events2)
+
     def _spectrum_function(self):
+        events1 = self.events1
+        common_gti = events1.gti
+        if self.events2 is None or self.events2 is self.events1:
+            events2 = self.events1
+            same_events = True
+        else:
+            common_gti = cross_two_gtis(events1.gti, events2.gti)
+            same_events = False
 
-        lag_spec = np.zeros(len(self.energy_intervals))
-        lag_spec_err = np.zeros_like(lag_spec)
-        for i, eint in enumerate(self.energy_intervals):
-            base_lc, ref_lc = self._construct_lightcurves(eint)
-            try:
-                xspect = AveragedCrossspectrum(base_lc, ref_lc,
-                                               segment_size=self.segment_size)
-            except AssertionError as e:
-                # Avoid assertions in AveragedCrossspectrum.
-                simon("AssertionError: " + str(e))
-            else:
-                good = (xspect.freq >= self.freq_interval[0]) & \
-                       (xspect.freq < self.freq_interval[1])
-                lag, lag_err = xspect.time_lag()
-                good_lag, good_lag_err = lag[good], lag_err[good]
-                coh, coh_err = xspect.coherence()
+        spec = np.zeros(len(self.energy_intervals))
+        spec_err = np.zeros_like(spec)
+        df = 1 / self.segment_size
 
-                lag_spec[i] = np.mean(good_lag)
-                coh_check = coh > 1.2 / (1 + 0.2 * xspect.m)
-                if not np.all(coh_check[good]):
-                    simon("Coherence is not ideal over the specified energy "
-                          "range. Lag values and uncertainties might be "
-                          "underestimated. See Epitropakis and Papadakis, "
-                          "A\&A 591, 1113, 2016")
+        ref_events = self._get_times_from_energy_range(events2,
+                                                       self.ref_band[0])
+        countrate_ref = ref_events.size / get_total_gti_length(common_gti,
+                                                               minlen=self.segment_size)
+        Prnoise = poisson_level(countrate_ref, norm="abs")
+        freq, Pr, N, M, mean = avg_pds_from_events(ref_events, common_gti,
+                                             self.segment_size, self.bin_time,
+                                             silent=True, norm="abs")
 
-                # Root squared sum of errors of the spectrum
-                # Verified!
-                lag_spec_err[i] = \
-                    np.sqrt(np.sum(good_lag_err**2) / len(good_lag))
+        good = (freq >= self.freq_interval[0]) & (freq < self.freq_interval[1])
+        Prmean = np.mean(Pr[good])
 
-        return lag_spec, lag_spec_err
+        f = (self.freq_interval[0] + self.freq_interval[1]) / 2
+
+        for i, eint in enumerate(show_progress(self.energy_intervals)):
+            sub_events = self._get_times_from_energy_range(events1, eint)
+            countrate_sub = sub_events.size / get_total_gti_length(common_gti,
+                                                                   minlen=self.segment_size)
+            Psnoise = poisson_level(countrate_sub, norm="abs")
+
+            _, cross, _, _, _ = avg_cs_from_events(sub_events, ref_events,
+                                                common_gti, self.segment_size,
+                                                self.bin_time, silent=True,
+                                                norm="abs")
+            _, Ps, _, _, _ = avg_pds_from_events(sub_events, common_gti,
+                                              self.segment_size, self.bin_time,
+                                              silent=True, norm="abs")
+
+            Cmean = np.mean(cross[good])
+            Psmean = np.mean(Ps[good])
+
+            common_ref = same_events and len(
+                cross_two_gtis([eint], self.ref_band)) > 0
+
+            _, _, phi_e, _ = error_on_cross_spectrum(
+                Cmean, Psmean, Prmean, N, Psnoise, Prnoise,
+                common_ref=common_ref)
+
+            lag = np.angle(Cmean) / (2 * np.pi * f)
+
+            spec[i] = lag
+            spec_err[i] = phi_e / (2 * np.pi * f)
+
+        return spec, spec_err
+
+
+LagEnergySpectrum = LagSpectrum
 
 
 class ComplexCovarianceSpectrum(VarEnergySpectrum):
@@ -839,55 +694,157 @@ class ComplexCovarianceSpectrum(VarEnergySpectrum):
     """
 
     def __init__(self, events, energy_spec, ref_band=None,
-                 bin_time=1, use_pi=False, segment_size=None, events2=None):
+                 freq_interval=[0, 1],
+                 bin_time=1, use_pi=False, segment_size=None, events2=None,
+                 norm="abs",
+                 return_complex=False):
 
-        VarEnergySpectrum.__init__(self, events, None, energy_spec,
+        self.norm = norm
+        self.return_complex = return_complex
+        VarEnergySpectrum.__init__(self, events, freq_interval=freq_interval,
+                                   energy_spec=energy_spec,
                                    bin_time=bin_time, use_pi=use_pi,
                                    ref_band=ref_band,
                                    segment_size=segment_size, events2=events2)
 
     def _spectrum_function(self):
+        events1 = self.events1
+        common_gti = events1.gti
+        if self.events2 is None or self.events2 is self.events1:
+            events2 = self.events1
+            same_events = True
+        else:
+            common_gti = cross_two_gtis(events1.gti, events2.gti)
+            same_events = False
 
-        spec = np.zeros(len(self.energy_intervals))
+        if self.return_complex:
+            dtype = complex
+        else:
+            dtype = float
+        spec = np.zeros(len(self.energy_intervals), dtype=dtype)
         spec_err = np.zeros_like(spec)
+        df = 1 / self.segment_size
+
+        ref_events = self._get_times_from_energy_range(events2,
+                                                       self.ref_band[0])
+        countrate_ref = ref_events.size / get_total_gti_length(common_gti,
+                                                               minlen=self.segment_size)
+        Prnoise = poisson_level(countrate_ref, norm=self.norm)
+
+        freq, Pr, N, M, mean = avg_pds_from_events(ref_events, common_gti,
+                                             self.segment_size, self.bin_time,
+                                             silent=True, norm=self.norm)
+
+        good = (freq >= self.freq_interval[0]) & (freq < self.freq_interval[1])
+        Mave = np.count_nonzero(good)
+        Prmean = np.mean(Pr[good])
+
+        delta_nu = M * Mave
 
         for i, eint in enumerate(show_progress(self.energy_intervals)):
-            base_lc, ref_lc = self._construct_lightcurves(eint, exclude=True)
+            sub_events = self._get_times_from_energy_range(events1, eint)
+            countrate_sub = sub_events.size / get_total_gti_length(common_gti,
+                                                                   minlen=self.segment_size)
+            Psnoise = poisson_level(countrate_sub, norm=self.norm)
 
-            cov, cov_e = self.calculate_cov(base_lc, ref_lc,
-                                            segment_size=self.segment_size)
+            _, cross, _, _, _ = avg_cs_from_events(sub_events, ref_events,
+                                                common_gti, self.segment_size,
+                                                self.bin_time, silent=True,
+                                                norm=self.norm)
+            _, Ps, _, _, _ = avg_pds_from_events(sub_events, common_gti,
+                                              self.segment_size, self.bin_time,
+                                              silent=True, norm=self.norm)
+
+            common_ref = same_events and len(
+                cross_two_gtis([eint], self.ref_band)) > 0
+            if common_ref:
+                noise_term = Psnoise
+                if self.norm == "frac":
+                    noise_term *= countrate_sub / countrate_ref
+                cross -= Psnoise
+            Cmean = np.mean(cross[good])
+            Cmean_real = np.abs(Cmean)
+
+            if not self.return_complex:
+                Cmean = Cmean_real
+
+            Psmean = np.mean(Ps[good])
+            _, _, _, Ce = error_on_cross_spectrum(
+                Cmean_real, Psmean, Prmean, N, Psnoise, Prnoise,
+                common_ref=common_ref)
+            cov, cov_e = cross_to_covariance(np.asarray([Cmean, Ce]), Prmean,
+                                             Prnoise, delta_nu)
 
             spec[i] = cov
             spec_err[i] = cov_e
 
         return spec, spec_err
 
-    def calculate_cov(self, lc1, lc2, segment_size):
-        """
-        Split the light curves into segments of size ``segment_size``, and calculate a cross spectrum for
-        each.
 
-        Parameters
-        ----------
-        lc1, lc2 : :class:`stingray.Lightcurve` objects
-            Two light curves used for computing the cross spectrum.
+class CovarianceSpectrum(ComplexCovarianceSpectrum):
+    """Calculate the covariance spectrum.
 
-        segment_size : ``numpy.float``
-            Size of each light curve segment to use for averaging.
+    For each energy interval, calculate the covariance between two bands.
+    If ``events2`` is specified, the energy bands are chosen from this second
+    event list, while the reference band from ``events``.
 
-        Other parameters
-        ----------------
-        silent : bool, default False
-            Suppress progress bars
+    Parameters
+    ----------
+    events : :class:`stingray.events.EventList` object
+        event list
 
-        Returns
-        -------
-        cs_all : list of :class:`Crossspectrum`` objects
-            A list of cross spectra calculated independently from each light curve segment
+    freq_interval : ``[f0, f1]``, list of float
+        the frequency range over which calculating the variability quantity
 
-        nphots1_all, nphots2_all : ``numpy.ndarray` for each of ``lc1`` and ``lc2``
-            Two lists containing the number of photons for all segments calculated from ``lc1`` and ``lc2``.
+    energy_spec : list or tuple ``(emin, emax, N, type)``
+        if a ``list`` is specified, this is interpreted as a list of bin edges;
+        if a ``tuple`` is provided, this will encode the minimum and maximum
+        energies, the number of intervals, and ``lin`` or ``log``.
 
-        """
-        pass
+    Other Parameters
+    ----------------
+    ref_band : ``[emin, emax]``, float; default ``None``
+        minimum and maximum energy of the reference band. If ``None``, the
+        full band is used.
 
+    use_pi : bool, default ``False``
+        Use channel instead of energy
+
+    events2 : :class:`stingray.events.EventList` object
+        event list for the second channel, if not the same. Useful if the
+        reference band has to be taken from another detector.
+
+    Attributes
+    ----------
+    events1 : array-like
+        list of events used to produce the spectrum
+
+    events2 : array-like
+        if the spectrum requires it, second list of events
+
+    freq_interval : array-like
+        interval of frequencies used to calculate the spectrum
+
+    energy_intervals : ``[[e00, e01], [e10, e11], ...]``
+        energy intervals used for the spectrum
+
+    spectrum : array-like
+        the spectral values, corresponding to each energy interval
+
+    spectrum_error : array-like
+        the errorbars corresponding to spectrum
+    """
+
+    def __init__(self, events, energy_spec, ref_band=None,
+                 freq_interval=[0, 1],
+                 bin_time=1, use_pi=False, segment_size=None, events2=None,
+                 norm="abs"):
+        ComplexCovarianceSpectrum.__init__(self, events,
+                                           freq_interval=freq_interval,
+                                           energy_spec=energy_spec,
+                                           bin_time=bin_time, use_pi=use_pi,
+                                           norm=norm,
+                                           ref_band=ref_band,
+                                           return_complex=False,
+                                           segment_size=segment_size,
+                                           events2=events2)
