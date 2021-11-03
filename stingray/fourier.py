@@ -377,7 +377,8 @@ def get_fts_from_event_segments(times, gti, segment_size, N):
         event_times = times[idx0:idx1]
 
         # counts, _ = np.histogram(event_times - s, bins=bins)
-        counts = histogram((event_times - s).astype(float), bins=N, ranges=[0, segment_size])
+        counts = histogram((event_times - s).astype(float), bins=N,
+                           range=[0, segment_size])
         ft = fft(counts)
         yield ft, idx1 - idx0
 

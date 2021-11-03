@@ -365,7 +365,7 @@ def test_find_nearest():
 
 def test_equal_count_energy_ranges():
     energies = np.random.uniform(0.3, 12, 1000000)
-    edges = equal_count_energy_ranges(energies, 100, emin=0.3, emax=12)
+    edges = utils.equal_count_energy_ranges(energies, 100, emin=0.3, emax=12)
     for e0, e1 in zip(edges[:-1], edges[1:]):
         good = energies[(energies >= e0)&(energies<e1)]
         assert np.count_nonzero(good) == 10000
