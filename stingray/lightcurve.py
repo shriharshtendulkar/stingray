@@ -39,12 +39,13 @@ def check_and_synchronize_lcs(lc1, lc2):
     >>> lc3 = Lightcurve(time=[0, 1.1], counts=[4, 4], gti=[[0.5, 1.5]],
     ...                  dt=1.1, err_dist="poisson", skip_checks=True)
     >>> lcfilt1, lcfilt2 = check_and_synchronize_lcs(lc1, lc2)
-     ...Lightcurves do not have same tseg...
+    >>> np.allclose(lcfilt1.time, lcfilt2.time)
+    True
     >>> np.allclose(lcfilt1.gti, [[0.5, 1.5]])
     True
     >>> check_and_synchronize_lcs(lc1, lc3)
     Traceback (most recent call last):
-     ...
+    ...
     ValueError: Light curves do not have same time binning dt.
     """
 
