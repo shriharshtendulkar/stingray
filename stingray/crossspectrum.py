@@ -15,6 +15,7 @@ from stingray.utils import genDataPath, rebin_data, rebin_data_log, simon
 from .events import EventList
 from .lightcurve import Lightcurve
 from .utils import show_progress
+from .fourier import avg_cs_from_events
 
 # location of factorial moved between scipy versions
 try:
@@ -1191,8 +1192,8 @@ class AveragedCrossspectrum(Crossspectrum):
 
     def __init__(self, data1=None, data2=None, segment_size=None, norm='none',
                  gti=None, power_type="real", silent=False, lc1=None, lc2=None,
-                 dt=None, fullspec=False, large_data=False, save_all=False):
-
+                 dt=None, fullspec=False, large_data=False, save_all=False,
+                 use_common_mean=True):
 
         if lc1 is not None or lc2 is not None:
             warnings.warn("The lcN keywords are now deprecated. Use dataN "
@@ -1249,6 +1250,7 @@ class AveragedCrossspectrum(Crossspectrum):
         self.fullspec = fullspec
 
         self.show_progress = not silent
+        self.use_common_mean = use_common_mean
         self.dt = dt
         self.save_all = save_all
 
@@ -1268,6 +1270,38 @@ class AveragedCrossspectrum(Crossspectrum):
                                power_type=power_type, dt=dt, fullspec=fullspec)
 
         return
+
+    @staticmethod
+    def from_events(events1, events2, dt, segment_size, norm='none',
+                    power_type="all", silent=False,
+                 fullspec=False, use_common_mean=True):
+        from .fourier import normalize_crossspectrum as norm_cross
+        from .fourier import avg_cs_from_events, avg_pds_from_events
+        gti = cross_two_gtis(events1.gti, events2.gti)
+
+        freq, power, N, M, mean = avg_cs_from_events(
+            events1.time, events2.time, gti, segment_size, dt,
+            norm=norm, use_common_mean=use_common_mean,
+            fullspec=fullspec, silent=silent, power_type=power_type)
+        _, power1, _, _, mean1 = avg_pds_from_events(events1.time, gti, segment_size, dt,
+            norm=norm, use_common_mean=use_common_mean,
+            fullspec=fullspec, silent=silent, power_type=power_type)
+        _, power2, _, _, mean2 = avg_pds_from_events(events2.time, gti, segment_size, dt,
+            norm=norm, use_common_mean=use_common_mean,
+            fullspec=fullspec, silent=silent, power_type=power_type)
+
+        cs = AveragedCrossspectrum()
+        cs.freq = freq
+        cs.power = power
+        cs.pds1 = power1
+        cs.pds2 = power2
+        cs.m = M
+        cs.n = N
+        cs.df = 1 / segment_size
+        cs.nphots1 = mean1 * N
+        cs.nphots2 = mean2 * N
+
+        return cs
 
     def _make_auxil_pds(self, lc1, lc2):
         """

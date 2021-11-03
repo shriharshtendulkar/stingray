@@ -126,9 +126,13 @@ class TestAveragedCrossspectrumEvents(object):
         tstart = 0.0
         tend = 1.0
         self.dt = np.longdouble(0.0001)
+        segment_size=1
+        N = np.rint(segment_size / self.dt).astype(int)
+        # adjust dt
+        self.dt = segment_size / N
 
-        times1 = np.sort(np.random.uniform(tstart, tend, 1000))
-        times2 = np.sort(np.random.uniform(tstart, tend, 1000))
+        times1 = np.sort(np.random.uniform(tstart, tend, 1000000))
+        times2 = np.sort(np.random.uniform(tstart, tend, 1000000))
         gti = np.array([[tstart, tend]])
 
         self.events1 = EventList(times1, gti=gti)
@@ -136,9 +140,16 @@ class TestAveragedCrossspectrumEvents(object):
 
         self.cs = Crossspectrum(self.events1, self.events2, dt=self.dt)
 
-        self.acs = AveragedCrossspectrum(self.events1, self.events2,
-                                         segment_size=1, dt=self.dt)
+        self.acs = AveragedCrossspectrum(self.events1.to_lc(self.dt),
+                                         self.events2.to_lc(self.dt),
+                                         segment_size=segment_size, dt=self.dt, norm='none')
         self.lc1, self.lc2 = self.events1, self.events2
+
+    def test_from_events_works(self):
+        lccs = AveragedCrossspectrum.from_events(self.events1, self.events2,
+                                         segment_size=1, dt=self.dt, norm='none',
+                                                 use_common_mean=False)
+        assert np.allclose(lccs.power.real, self.acs.power.real, rtol=0.01)
 
     def test_it_works_with_events(self):
         lc1 = self.events1.to_lc(self.dt)

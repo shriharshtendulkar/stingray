@@ -497,6 +497,26 @@ class AveragedPowerspectrum(AveragedCrossspectrum, Powerspectrum):
 
         return
 
+    @staticmethod
+    def from_events(events, dt, segment_size, norm='none',
+                    power_type="real", silent=False,
+                 fullspec=False, use_common_mean=True):
+        from .fourier import normalize_crossspectrum as norm_cross
+        from .fourier import avg_pds_from_events
+
+        freq, power, N, M, mean = avg_pds_from_events(events.time, events.gti, segment_size, dt,
+            norm=norm, use_common_mean=use_common_mean,
+            fullspec=fullspec, silent=silent, power_type=power_type)
+
+        cs = AveragedPowerspectrum()
+        cs.freq = freq
+        cs.power = power
+        cs.m = M
+        cs.n = N
+        cs.df = 1 / segment_size
+        cs.nphots = mean * N
+        return cs
+
     def _make_segment_spectrum(self, lc, segment_size, silent=False):
         """
         Split the light curves into segments of size ``segment_size``, and

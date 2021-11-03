@@ -27,8 +27,10 @@ class TestAveragedPowerspectrumEvents(object):
 
         cls.lc = cls.events
 
-    def test_init(self):
-        AveragedPowerspectrum(self.lc, self.segment_size, dt=self.dt)
+    def test_from_events_works(self):
+        pds = AveragedPowerspectrum(self.lc, segment_size=self.segment_size, dt=self.dt, norm="abs")
+        pds_ev = AveragedPowerspectrum.from_events(self.events, segment_size=self.segment_size, dt=self.dt, norm="abs")
+        assert np.allclose(pds.power, pds_ev.power)
 
     def test_init_without_segment(self):
         with pytest.raises(ValueError):
