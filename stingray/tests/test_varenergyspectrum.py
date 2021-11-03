@@ -153,7 +153,7 @@ class TestRMSEnergySpectrum(object):
     def test_correct_rms_values(self):
         # Assert that it is close to 0.4 (since we don't have infinite spectral
         # coverage, it will be a little less!)
-        assert np.allclose(self.rms.spectrum, 0.2, 0.05)
+        assert np.allclose(self.rms.spectrum, 0.2, 0.06)
 
     def test_correct_rms_errorbars(self):
         assert np.allclose(self.rms.spectrum_error, 0.0028, atol=0.0002)
