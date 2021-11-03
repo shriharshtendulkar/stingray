@@ -1,5 +1,6 @@
 import warnings
 import glob
+from collections.abc import Iterable
 import matplotlib.pyplot as plt
 from astropy.table import Table
 import numpy as np
@@ -209,7 +210,10 @@ def raw_coherence(C, P1, P2, P1noise, P2noise, N, intrinsic_coherence=1):
     """
     bsq = bias_term(C, P1, P2, P1noise, P2noise, N, intrinsic_coherence=intrinsic_coherence)
     num = (C * C.conj()).real - bsq
-    num[num < 0] = (C * C.conj()).real[num < 0]
+    if isinstance(num, Iterable):
+        num[num < 0] = (C * C.conj()).real[num < 0]
+    elif num < 0:
+        num = (C * C.conj()).real
     den = P1 * P2
     return num / den
 
