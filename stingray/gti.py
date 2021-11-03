@@ -1143,39 +1143,42 @@ def bin_intervals_from_gtis(gtis, chunk_length, time, dt=None, fraction_step=1,
     >>> np.allclose(time[start_bins[1]:stop_bins[1]], [2.5, 3.5])
     True
     """
+    time = np.asarray(time)
+    gtis = np.asarray(gtis)
     if dt is None:
         dt = np.median(np.diff(time))
 
     epsilon_times_dt = epsilon * dt
-    nbin = int(chunk_length / dt)
+    nbin = np.rint(chunk_length / dt).astype(int)
 
     if time[-1] < np.min(gtis) or time[0] > np.max(gtis):
         raise ValueError("Invalid time interval for the given GTIs")
 
     spectrum_start_bins = np.array([], dtype=int)
 
-    for g in gtis:
-        if (g[1] - g[0] + epsilon_times_dt) < chunk_length:
-            continue
-        good_low = time >= (g[0] - epsilon_times_dt + dt / 2)
-        good_up = time <= (g[1] + epsilon_times_dt - dt / 2)
+    gti_low = gtis[:, 0] + dt / 2 - epsilon_times_dt
+    gti_up = gtis[:, 1] - dt / 2 + epsilon_times_dt
 
-        good = good_low & good_up
-        t_good = time[good]
-        if len(t_good) == 0:
+    for g0, g1 in zip(gti_low, gti_up):
+        if (g1 - g0 + dt + epsilon_times_dt) < chunk_length:
             continue
-        startbin, stopbin = np.searchsorted(time,
-                                            [g[0] + dt / 2, g[1] - dt / 2],
-                                            "left")
+        # good_low = time >= g0
+        # good_up = time <= g1
+        #
+        # good = good_low & good_up
+        # t_good = time[good]
+        # if len(t_good) == 0:
+        #     continue
+        startbin, stopbin = np.searchsorted(time, [g0, g1], "left")
         stopbin += 1
         if stopbin > time.size:
             stopbin = time.size
 
-        if time[startbin] < (g[0] + dt / 2 - epsilon_times_dt):
+        if time[startbin] < g0:
             startbin += 1
         # Would be g[1] - dt/2, but stopbin is the end of an interval
         # so one has to add one bin
-        if time[stopbin - 1] > (g[1] - dt / 2 + epsilon_times_dt):
+        if time[stopbin - 1] > g1:
             stopbin -= 1
 
         newbins = np.arange(startbin, stopbin - nbin + 1,

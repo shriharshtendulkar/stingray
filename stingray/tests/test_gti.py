@@ -239,6 +239,19 @@ class TestGTI(object):
         assert np.allclose(start_bins, np.array([0, 2, 6]))
         assert np.allclose(stop_bins, np.array([2, 4, 8]))
 
+    def test_bin_intervals_from_gtis_2(self):
+        dt = 0.1
+        tstart = 0
+        tstop = 100
+        times = np.arange(tstart, tstop, dt)
+        gti = np.array([[tstart - dt/2, tstop - dt/2]])
+        # Simulate something *clearly* non-constant
+        counts = np.random.poisson(
+            10000 + 2000 * np.sin(2 * np.pi * times))
+
+        start_bins, stop_bins = bin_intervals_from_gtis(gti, 20, times)
+        assert np.allclose(start_bins, [0, 200, 400, 600, 800])
+
     def test_bin_intervals_from_gtis_frac(self):
         """Test the division of start and end times to calculate spectra."""
         times = np.arange(0.5, 13.5)
