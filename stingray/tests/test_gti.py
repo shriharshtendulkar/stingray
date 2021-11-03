@@ -305,4 +305,3 @@ class TestGTI(object):
                         [1.16703482e+08, 1.16703514e+08]])
         newg = join_equal_gti_boundaries(gti)
         assert np.allclose(newg, np.array([[1.16703354e+08, 1.16703514e+08]]))
-

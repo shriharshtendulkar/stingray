@@ -1170,8 +1170,8 @@ def bin_intervals_from_gtis(gtis, chunk_length, time, dt=None, fraction_step=1,
             continue
         startbin, stopbin = np.searchsorted(time,
                                             [g[0] + dt / 2, g[1] - dt / 2],
-                                            "right")
-
+                                            "left")
+        stopbin += 1
         if stopbin > time.size:
             stopbin = time.size
 
@@ -1266,3 +1266,24 @@ def gti_border_bins(gtis, time, dt=None, epsilon=0.001):
     assert len(spectrum_start_bins) > 0, \
         ("No GTIs are equal to or longer than chunk_length.")
     return spectrum_start_bins, spectrum_stop_bins
+
+
+def get_segment_events_idx(times, gti, segment_size):
+    """Get the indices of events from different segments of the observation.
+
+    Parameters
+    ----------
+    times : float `np.array`
+        Array of times
+    gti : [[gti00, gti01], [gti10, gti11], ...]
+        good time intervals
+    segment_size : float
+        length of segments
+    """
+    start, stop = time_intervals_from_gtis(gti, segment_size)
+
+    startidx = np.asarray(np.searchsorted(times, start))
+    stopidx = np.asarray(np.searchsorted(times, stop))
+
+    for s, e, idx0, idx1 in zip(start, stop, startidx, stopidx):
+        yield s, e, idx0, idx1

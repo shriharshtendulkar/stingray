@@ -3,7 +3,8 @@ import glob
 import matplotlib.pyplot as plt
 from astropy.table import Table
 import numpy as np
-from .gti import create_gti_from_condition, gti_border_bins, time_intervals_from_gtis, cross_two_gtis
+from .gti import create_gti_from_condition, gti_border_bins
+from .gti import get_segment_events_idx, time_intervals_from_gtis, cross_two_gtis
 
 from .utils import histogram, show_progress
 
@@ -326,27 +327,6 @@ def cross_to_covariance(C, Pr, Prnoise, delta_nu):
     return C * np.sqrt(delta_nu / (Pr - Prnoise))
 
 
-def get_segment_events_idx(times, gti, segment_size):
-    """Get the indices of events from different segments of the observation.
-
-    Parameters
-    ----------
-    times : float `np.array`
-        Array of times
-    gti : [[gti00, gti01], [gti10, gti11], ...]
-        good time intervals
-    segment_size : float
-        length of segments
-    """
-    start, stop = time_intervals_from_gtis(gti, segment_size)
-
-    startidx = np.asarray(np.searchsorted(times, start))
-    stopidx = np.asarray(np.searchsorted(times, stop))
-
-    for s, e, idx0, idx1 in zip(start, stop, startidx, stopidx):
-        yield s, e, idx0, idx1
-
-
 def get_total_ctrate(times, gti, segment_size):
     """Calculate the average count rate during the observation.
 
@@ -398,14 +378,13 @@ def get_fts_from_event_segments(times, gti, segment_size, N):
 
         # counts, _ = np.histogram(event_times - s, bins=bins)
         counts = histogram((event_times - s).astype(float), bins=N, ranges=[0, segment_size])
-
         ft = fft(counts)
         yield ft, idx1 - idx0
 
 
 def avg_pds_from_events(times, gti, segment_size, dt,
                         norm="abs", use_common_mean=True,
-                        fullspec=False, silent=False):
+                        fullspec=False, silent=False, power_type="all"):
     """Calculate the average periodogram from a list of event times.
 
     Parameters
@@ -435,6 +414,9 @@ def avg_pds_from_events(times, gti, segment_size, dt,
         Return the full periodogram, including negative frequencies
     silent : bool, default False
         Silence the progress bars
+    power_type : str, default 'all'
+        If 'all', give complex powers. If 'abs', the absolute value; if 'real',
+        the real part
 
     Returns
     -------
@@ -446,6 +428,8 @@ def avg_pds_from_events(times, gti, segment_size, dt,
         the number of bins in the light curves used in each segment
     M : int
         the number of averaged periodograms
+    mean : float
+        the mean counts per bin
     """
     N = np.rint(segment_size / dt).astype(int)
     # adjust dt
@@ -478,7 +462,7 @@ def avg_pds_from_events(times, gti, segment_size, dt,
             mean = nph / N
 
         cs_seg = normalize_crossspectrum(unnorm_power, dt, N, mean, norm=norm,
-                                         power_type="all")
+                                         power_type=power_type)
 
         if cross is None:
             cross = cs_seg
@@ -489,13 +473,13 @@ def avg_pds_from_events(times, gti, segment_size, dt,
     cross /= M
     if not fullspec:
         freq = freq[fgt0]
-    return freq, cross, N, M
+    return freq, cross, N, M, mean
 
 
 def avg_cs_from_events(times1, times2, gti,
                        segment_size, dt, norm="abs",
                        use_common_mean=False, fullspec=False, common_ref=False,
-                       silent=False):
+                       silent=False, power_type="all"):
     """Calculate the average cross spectrum from a list of event times.
 
     Parameters
@@ -527,6 +511,9 @@ def avg_cs_from_events(times1, times2, gti,
         Return the full periodogram, including negative frequencies
     silent : bool, default False
         Silence the progress bars
+    power_type : str, default 'all'
+        If 'all', give complex powers. If 'abs', the absolute value; if 'real',
+        the real part
 
     Returns
     -------
@@ -577,8 +564,10 @@ def avg_cs_from_events(times1, times2, gti,
             nph = np.sqrt(nph1 * nph2)
             mean = nph / N
 
-        cs_seg = normalize_crossspectrum(unnorm_power, dt, N, mean, norm=norm,
-                                         power_type="all")
+            cs_seg = normalize_crossspectrum(unnorm_power, dt, N, mean, norm=norm,
+                                             power_type=power_type)
+        else:
+            cs_seg = unnorm_power
 
         if cross is None:
             cross = cs_seg
@@ -587,6 +576,9 @@ def avg_cs_from_events(times1, times2, gti,
         M += 1
 
     cross /= M
+    if use_common_mean:
+        cross = normalize_crossspectrum(cross, dt, N, mean, norm=norm,
+                                        power_type=power_type)
     if not fullspec:
         freq = freq[fgt0]
-    return freq, cross, N, M
+    return freq, cross, N, M, mean
