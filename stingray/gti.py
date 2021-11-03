@@ -52,10 +52,6 @@ def get_gti_lengths(gti):
     return np.diff(gti, axis=1).flatten()
 
 
-# For API compatibility
-gti_len = get_gti_lengths
-
-
 def get_total_gti_length(gti, minlen=0):
     """Calculate the total exposure during Good Time Intervals.
 
