@@ -38,10 +38,10 @@ class Simulator(object):
     def __init__(self, dt, N, mean, rms, red_noise=1,
                  random_state=None, tstart=0.0):
         self.dt = dt
- 
+
         if not isinstance(N, (int, np.integer)):
-            raise ValueError("N must be integer!") 
- 
+            raise ValueError("N must be integer!")
+
         self.N = N
 
         if mean == 0:
