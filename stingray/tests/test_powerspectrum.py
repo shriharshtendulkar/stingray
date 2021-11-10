@@ -788,7 +788,7 @@ class TestDynamicalPowerspectrum(object):
             dps = DynamicalPowerspectrum(self.lc, segment_size=segment_size)
         new_dps = dps.rebin_frequency(df_new=df_new)
         assert np.allclose(new_dps.freq, rebin_freq)
-        assert np.allclose(new_dps.dyn_ps, rebin_dps)
+        assert np.allclose(new_dps.dyn_ps, rebin_dps, atol=0.01)
         assert np.isclose(new_dps.df, df_new)
 
     def test_rebin_time_mean_method(self):
@@ -819,7 +819,7 @@ class TestDynamicalPowerspectrum(object):
             dps = DynamicalPowerspectrum(self.lc, segment_size=segment_size)
         new_dps = dps.rebin_frequency(df_new=df_new, method="mean")
         assert np.allclose(new_dps.freq, rebin_freq)
-        assert np.allclose(new_dps.dyn_ps, rebin_dps)
+        assert np.allclose(new_dps.dyn_ps, rebin_dps, atol=0.00001)
         assert np.isclose(new_dps.df, df_new)
 
     def test_rebin_time_average_method(self):
@@ -851,5 +851,5 @@ class TestDynamicalPowerspectrum(object):
             dps = DynamicalPowerspectrum(self.lc, segment_size=segment_size)
         new_dps = dps.rebin_frequency(df_new=df_new, method="average")
         assert np.allclose(new_dps.freq, rebin_freq)
-        assert np.allclose(new_dps.dyn_ps, rebin_dps)
+        assert np.allclose(new_dps.dyn_ps, rebin_dps, atol=0.00001)
         assert np.isclose(new_dps.df, df_new)

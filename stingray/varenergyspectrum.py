@@ -336,32 +336,62 @@ class RmsEnergySpectrum(VarEnergySpectrum):
     """
 
     def _spectrum_function(self):
+        events1 = self.events1
+        events2 = self.events2
+        common_gti = events1.gti
+        if events2 is None or events2 is events1:
+            events2 = events1
+            same_events = True
+        else:
+            common_gti = cross_two_gtis(events1.gti, events2.gti)
+            same_events = False
 
-        rms_spec = np.zeros(len(self.energy_intervals))
-        rms_spec_err = np.zeros_like(rms_spec)
+        spec = np.zeros(len(self.energy_intervals))
+        spec_err = np.zeros_like(spec)
+
+        N = np.rint(self.segment_size / dt)
+        delta_nu = 1 / self.segment_size
+
+        freq = fftfreq(N, dt)
+        good = (freq >= self.freq_interval[0]) & (freq < self.freq_interval[1])
+        # Prmean = np.mean(Pr[good])
+        Mave = np.count_nonzero(good)
+
+        f = (self.freq_interval[0] + self.freq_interval[1]) / 2
+
         for i, eint in enumerate(show_progress(self.energy_intervals)):
-            base_lc, ref_lc = self._construct_lightcurves(eint,
-                                                          exclude=False)
-            try:
-                xspect = AveragedCrossspectrum(base_lc, ref_lc,
-                                               segment_size=self.segment_size,
-                                               norm='frac', silent=True)
-            except AssertionError as e:
-                # Avoid "Mean count rate is <= 0. Something went wrong" assertion.
-                simon("AssertionError: " + str(e))
+            sub_events = self._get_times_from_energy_range(events1, eint)
+            countrate_sub = sub_events.size / get_total_gti_length(common_gti,
+                                                                   minlen=self.segment_size)
+            Psnoise = poisson_level(countrate_sub, norm="abs")
+
+            if not same_events:
+                ref_events = self._get_times_from_energy_range(events2, eint)
+                _, cross, N, M, _ = avg_cs_from_events(
+                    sub_events, ref_events, common_gti, self.segment_size,
+                    self.bin_time, silent=True, norm="abs")
+                Pmean = np.mean(cross[good])
+                Pnoise = 0
+                rmsnoise = 0
             else:
-                good = (xspect.freq >= self.freq_interval[0]) & \
-                       (xspect.freq < self.freq_interval[1])
-                rms_spec[i] = np.sqrt(np.sum(xspect.power[good] * xspect.df))
+                _, Ps, N, M, _ = avg_pds_from_events(sub_events, common_gti,
+                                                  self.segment_size, self.bin_time,
+                                                  silent=True, norm="abs")
+                Pmean = np.mean(Ps[good])
+                Pnoise = Psnoise
+                rmsnoise = np.sqrt(delta_nu * Psnoise)
 
-                # Root squared sum of errors of the spectrum
-                root_sq_err_sum = \
-                    np.sqrt(np.sum((xspect.power_err[good] * xspect.df) ** 2))
-                # But the rms is the squared root. So,
-                # Error propagation
-                rms_spec_err[i] = 1 / (2 * rms_spec[i]) * root_sq_err_sum
+            # Assume coherence 1
+            rms = np.sqrt(np.abs(Pmean - Pnoise) * delta_nu)
+            num = rms**4 + rmsnoise**4 + 2 * rms * rmsnoise
+            den = 4 * M * Mave * rms**2
 
-        return rms_spec, rms_spec_err
+            rms_err = np.sqrt(num / den)
+
+            spec[i] = rms
+            spec_err[i] = rms_err
+
+        return spec, spec_err
 
 
 class ExcessVarianceSpectrum(VarEnergySpectrum):
@@ -601,6 +631,8 @@ class LagSpectrum(VarEnergySpectrum):
 
         good = (freq >= self.freq_interval[0]) & (freq < self.freq_interval[1])
         Prmean = np.mean(Pr[good])
+        Mave = np.count_nonzero(good)
+        Mtot = Mave * M
 
         f = (self.freq_interval[0] + self.freq_interval[1]) / 2
 
@@ -625,7 +657,7 @@ class LagSpectrum(VarEnergySpectrum):
                 cross_two_gtis([eint], self.ref_band)) > 0
 
             _, _, phi_e, _ = error_on_cross_spectrum(
-                Cmean, Psmean, Prmean, N, Psnoise, Prnoise,
+                Cmean, Psmean, Prmean, Mtot, Psnoise, Prnoise,
                 common_ref=common_ref)
 
             lag = np.angle(Cmean) / (2 * np.pi * f)
@@ -739,7 +771,8 @@ class ComplexCovarianceSpectrum(VarEnergySpectrum):
         Mave = np.count_nonzero(good)
         Prmean = np.mean(Pr[good])
 
-        delta_nu = M * Mave
+        Mtot = M * Mave
+        delta_nu = Mave * df
 
         for i, eint in enumerate(show_progress(self.energy_intervals)):
             sub_events = self._get_times_from_energy_range(events1, eint)
@@ -770,8 +803,9 @@ class ComplexCovarianceSpectrum(VarEnergySpectrum):
 
             Psmean = np.mean(Ps[good])
             _, _, _, Ce = error_on_cross_spectrum(
-                Cmean_real, Psmean, Prmean, N, Psnoise, Prnoise,
+                Cmean_real, Psmean, Prmean, Mtot, Psnoise, Prnoise,
                 common_ref=common_ref)
+
             cov, cov_e = cross_to_covariance(np.asarray([Cmean, Ce]), Prmean,
                                              Prnoise, delta_nu)
 
