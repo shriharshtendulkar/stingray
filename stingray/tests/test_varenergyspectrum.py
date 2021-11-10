@@ -183,7 +183,7 @@ class TestLagEnergySpectrum(object):
         from ..simulator import Simulator
         dt = 0.01
         cls.time_lag = 0.5
-        simulator = Simulator(dt, 4000, rms=0.4, mean=2000)
+        simulator = Simulator(dt, 4000, rms=0.2, mean=2000)
         test_lc1 = simulator.simulate(2)
         test_lc2 = Lightcurve(test_lc1.time,
                               np.array(np.roll(test_lc1.counts, int(cls.time_lag // dt))),

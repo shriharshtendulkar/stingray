@@ -631,8 +631,8 @@ class LagSpectrum(VarEnergySpectrum):
             common_gti = cross_two_gtis(events1.gti, events2.gti)
             same_events = False
 
-        spec = np.zeros(len(self.energy_intervals))
-        spec_err = np.zeros_like(spec)
+        spec = np.zeros(len(self.energy_intervals)) + np.nan
+        spec_err = np.zeros_like(spec) + np.nan
 
         ref_events = self._get_times_from_energy_range(events2,
                                                        self.ref_band[0])
@@ -663,6 +663,9 @@ class LagSpectrum(VarEnergySpectrum):
             _, Ps, _, _, _ = avg_pds_from_events(sub_events, common_gti,
                                               self.segment_size, self.bin_time,
                                               silent=True, norm="abs")
+
+            if cross is None or Ps is None:
+                continue
 
             Cmean = np.mean(cross[good])
             Psmean = np.mean(Ps[good])
@@ -767,8 +770,8 @@ class ComplexCovarianceSpectrum(VarEnergySpectrum):
             dtype = complex
         else:
             dtype = float
-        spec = np.zeros(len(self.energy_intervals), dtype=dtype)
-        spec_err = np.zeros_like(spec)
+        spec = np.zeros(len(self.energy_intervals), dtype=dtype) + np.nan
+        spec_err = np.zeros_like(spec) + np.nan
         df = 1 / self.segment_size
 
         ref_events = self._get_times_from_energy_range(events2,
@@ -801,6 +804,8 @@ class ComplexCovarianceSpectrum(VarEnergySpectrum):
             _, Ps, _, _, _ = avg_pds_from_events(sub_events, common_gti,
                                               self.segment_size, self.bin_time,
                                               silent=True, norm=self.norm)
+            if cross is None or Ps is None:
+                continue
 
             common_ref = same_events and len(
                 cross_two_gtis([eint], self.ref_band)) > 0

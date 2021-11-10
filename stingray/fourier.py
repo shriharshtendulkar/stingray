@@ -475,6 +475,8 @@ def avg_pds_from_events(times, gti, segment_size, dt,
             cross += cs_seg
         M += 1
 
+    if cross is None:
+        return None, None, None, None, None
     cross /= M
     if not fullspec:
         freq = freq[fgt0]
@@ -579,7 +581,8 @@ def avg_cs_from_events(times1, times2, gti,
         else:
             cross += cs_seg
         M += 1
-
+    if cross is None:
+        return None, None, None, None, None
     cross /= M
     if use_common_mean:
         cross = normalize_crossspectrum(cross, dt, N, mean, norm=norm,
