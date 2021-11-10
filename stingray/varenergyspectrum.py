@@ -5,13 +5,13 @@ from stingray.gti import check_separate, cross_two_gtis, create_gti_mask, check_
 from stingray.lightcurve import Lightcurve
 from stingray.utils import assign_value_if_none, simon, excess_variance, show_progress,equal_count_energy_ranges
 from stingray.crossspectrum import AveragedCrossspectrum
-from stingray.fourier import avg_cs_from_events, avg_pds_from_events
+from stingray.fourier import avg_cs_from_events, avg_pds_from_events, fftfreq
 from stingray.fourier import poisson_level, error_on_cross_spectrum, cross_to_covariance
 from abc import ABCMeta, abstractmethod
 import six
 
 
-__all__ = ["VarEnergySpectrum", "RmsEnergySpectrum", "LagEnergySpectrum", "LagSpectrum", "ExcessVarianceSpectrum", "CovarianceSpectrum", "ComplexCovarianceSpectrum", "CountSpectrum"]
+__all__ = ["VarEnergySpectrum", "RmsEnergySpectrum", "RmsSpectrum", "LagEnergySpectrum", "LagSpectrum", "ExcessVarianceSpectrum", "CovarianceSpectrum", "ComplexCovarianceSpectrum", "CountSpectrum"]
 
 
 def _decode_energy_specification(energy_spec):
@@ -281,7 +281,7 @@ class VarEnergySpectrum(object):
         pass
 
 
-class RmsEnergySpectrum(VarEnergySpectrum):
+class RmsSpectrum(VarEnergySpectrum):
     """Calculate the rms-Energy spectrum.
 
     For each energy interval, calculate the power density spectrum in
@@ -349,13 +349,14 @@ class RmsEnergySpectrum(VarEnergySpectrum):
         spec = np.zeros(len(self.energy_intervals))
         spec_err = np.zeros_like(spec)
 
-        N = np.rint(self.segment_size / dt)
+        N = np.rint(self.segment_size / self.bin_time)
         delta_nu = 1 / self.segment_size
-
-        freq = fftfreq(N, dt)
+        freq = fftfreq(int(N), self.bin_time)
+        freq = freq[freq > 0]
         good = (freq >= self.freq_interval[0]) & (freq < self.freq_interval[1])
-        # Prmean = np.mean(Pr[good])
+
         Mave = np.count_nonzero(good)
+        delta_nu_after_mean = delta_nu * Mave
 
         f = (self.freq_interval[0] + self.freq_interval[1]) / 2
 
@@ -367,31 +368,44 @@ class RmsEnergySpectrum(VarEnergySpectrum):
 
             if not same_events:
                 ref_events = self._get_times_from_energy_range(events2, eint)
-                _, cross, N, M, _ = avg_cs_from_events(
+                countrate_ref = ref_events.size / get_total_gti_length(
+                    common_gti,
+                    minlen=self.segment_size)
+                Prnoise = poisson_level(countrate_ref, norm="abs")
+                _, cross, N, M, mean = avg_cs_from_events(
                     sub_events, ref_events, common_gti, self.segment_size,
                     self.bin_time, silent=True, norm="abs")
                 Pmean = np.mean(cross[good])
                 Pnoise = 0
-                rmsnoise = 0
+                rmsnoise = np.sqrt(delta_nu_after_mean * np.sqrt(Psnoise*Prnoise))
+                meanrate = mean / self.bin_time
             else:
-                _, Ps, N, M, _ = avg_pds_from_events(sub_events, common_gti,
+                _, Ps, N, M, mean = avg_pds_from_events(sub_events, common_gti,
                                                   self.segment_size, self.bin_time,
                                                   silent=True, norm="abs")
                 Pmean = np.mean(Ps[good])
                 Pnoise = Psnoise
-                rmsnoise = np.sqrt(delta_nu * Psnoise)
+                rmsnoise = np.sqrt(delta_nu_after_mean * Pnoise)
+
+                meanrate = mean / self.bin_time
 
             # Assume coherence 1
-            rms = np.sqrt(np.abs(Pmean - Pnoise) * delta_nu)
+            # rmsnoise = np.sqrt(delta_nu_after_mean * Pnoise)
+
+            rms = np.sqrt(np.abs(Pmean - Pnoise) * delta_nu_after_mean)
+
             num = rms**4 + rmsnoise**4 + 2 * rms * rmsnoise
             den = 4 * M * Mave * rms**2
 
             rms_err = np.sqrt(num / den)
 
-            spec[i] = rms
-            spec_err[i] = rms_err
+            spec[i] = rms / meanrate
+            spec_err[i] = rms_err / meanrate
 
         return spec, spec_err
+
+
+RmsEnergySpectrum = RmsSpectrum
 
 
 class ExcessVarianceSpectrum(VarEnergySpectrum):
@@ -635,7 +649,7 @@ class LagSpectrum(VarEnergySpectrum):
         Mtot = Mave * M
 
         f = (self.freq_interval[0] + self.freq_interval[1]) / 2
-
+        import matplotlib.pyplot as plt
         for i, eint in enumerate(show_progress(self.energy_intervals)):
             sub_events = self._get_times_from_energy_range(events1, eint)
             countrate_sub = sub_events.size / get_total_gti_length(common_gti,
@@ -660,7 +674,7 @@ class LagSpectrum(VarEnergySpectrum):
                 Cmean, Psmean, Prmean, Mtot, Psnoise, Prnoise,
                 common_ref=common_ref)
 
-            lag = np.angle(Cmean) / (2 * np.pi * f)
+            lag = np.mean((np.angle(cross) / (2 * np.pi * freq))[good])
             lag_e = phi_e / (2 * np.pi * f)
             spec[i] = lag
             spec_err[i] = lag_e

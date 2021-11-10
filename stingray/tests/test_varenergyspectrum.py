@@ -135,37 +135,43 @@ class TestRMSEnergySpectrum(object):
     @classmethod
     def setup_class(cls):
         from ..simulator import Simulator
-
-        simulator = Simulator(0.1, 1000, rms=0.2, mean=200)
-        test_lc = simulator.simulate(1)
+        cls.rms = 0.2
+        cls.bin_time = 0.005
+        simulator = Simulator(cls.bin_time, 1000, rms=cls.rms, mean=200)
+        test_lc = simulator.simulate(1.5)
         test_ev1, test_ev2 = EventList(), EventList()
         test_ev1.simulate_times(test_lc)
         test_ev2.simulate_times(test_lc)
         test_ev1.energy = np.random.uniform(0.3, 12, len(test_ev1.time))
         test_ev2.energy = np.random.uniform(0.3, 12, len(test_ev2.time))
 
-        cls.rms = RmsEnergySpectrum(test_ev1, [0., 100],
-                                    (0.3, 12, 5, "lin"),
-                                    bin_time=0.01,
-                                    segment_size=100,
-                                    events2=test_ev2)
+        cls.rmsspec_cross = RmsEnergySpectrum(test_ev1, freq_interval=[0.01, 20.],
+                                    energy_spec=(0.3, 12, 2, "lin"),
+                                    bin_time=cls.bin_time / 2,
+                                    segment_size=2, events2=test_ev2)
+        cls.rmsspec_pds = RmsEnergySpectrum(test_ev1, freq_interval=[0.01, 20.],
+                                    energy_spec=(0.3, 12, 2, "lin"),
+                                    bin_time=cls.bin_time / 2,
+                                    segment_size=2)
 
-    def test_correct_rms_values(self):
+    def test_correct_rms_values_vs_cross(self):
         # Assert that it is close to 0.4 (since we don't have infinite spectral
         # coverage, it will be a little less!)
-        assert np.allclose(self.rms.spectrum, 0.2, 0.06)
-
-    def test_correct_rms_errorbars(self):
-        assert np.allclose(self.rms.spectrum_error, 0.0028, atol=0.0002)
+        pds = self.rmsspec_pds.spectrum
+        cross = self.rmsspec_cross.spectrum
+        err = self.rmsspec_pds.spectrum_error
+        cerr = self.rmsspec_cross.spectrum_error
+        assert np.allclose(err, cerr, rtol=0.2)
+        assert np.allclose(pds, cross, atol=3 * err)
 
     def test_rms_invalid_evlist_warns(self):
-        ev = EventList(time=[], energy=[], gti=self.rms.events1.gti)
+        ev = EventList(time=[], energy=[], gti=self.rmsspec_cross.events1.gti)
         with pytest.warns(UserWarning) as record:
             rms = RmsEnergySpectrum(ev, [0., 100],
                                     (0.3, 12, 5, "lin"),
                                     bin_time=0.01,
                                     segment_size=100,
-                                    events2=self.rms.events2)
+                                    events2=self.rmsspec_cross.events2)
 
         assert np.allclose(rms.spectrum, 0)
         assert np.allclose(rms.spectrum_error, 0)
@@ -175,28 +181,29 @@ class TestLagEnergySpectrum(object):
     @classmethod
     def setup_class(cls):
         from ..simulator import Simulator
-        dt = 0.1
-        simulator = Simulator(dt, 1000, rms=0.4, mean=1000)
+        dt = 0.01
+        cls.time_lag = 0.5
+        simulator = Simulator(dt, 4000, rms=0.4, mean=2000)
         test_lc1 = simulator.simulate(2)
         test_lc2 = Lightcurve(test_lc1.time,
-                              np.array(np.roll(test_lc1.counts, 2)),
+                              np.array(np.roll(test_lc1.counts, int(cls.time_lag // dt))),
                               err_dist=test_lc1.err_dist,
                               dt=dt)
-
         test_ev1, test_ev2 = EventList(), EventList()
         test_ev1.simulate_times(test_lc1)
         test_ev2.simulate_times(test_lc2)
+
         test_ev1.energy = np.random.uniform(0.3, 9, len(test_ev1.time))
         test_ev2.energy = np.random.uniform(9, 12, len(test_ev2.time))
 
-        cls.lag = LagEnergySpectrum(test_ev1, [0., 0.5],
-                                    (0.3, 9, 4, "lin"), [9, 12],
+        cls.lag = LagEnergySpectrum(test_ev1, [0., 1],
+                                    (0.3, 9, 3, "lin"), [9, 12],
                                     bin_time=0.01,
-                                    segment_size=30,
+                                    segment_size=10,
                                     events2=test_ev2)
 
     def test_lagspectrum_values_and_errors(self):
-        assert np.all(np.abs(self.lag.spectrum - 0.2) < \
+        assert np.all(np.abs(self.lag.spectrum - self.time_lag) < \
                       3 * self.lag.spectrum_error)
 
     def test_lag_invalid_evlist_warns(self):
