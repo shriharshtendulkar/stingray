@@ -28,14 +28,18 @@ class TestAveragedPowerspectrumEvents(object):
         cls.lc = cls.events
 
     def test_from_events_works(self):
-        pds = AveragedPowerspectrum(self.lc, segment_size=self.segment_size, dt=self.dt, norm="abs")
-        pds_ev = AveragedPowerspectrum.from_events(self.events, segment_size=self.segment_size, dt=self.dt, norm="abs")
+        pds = AveragedPowerspectrum(
+            self.lc, segment_size=self.segment_size, dt=self.dt, norm="abs")
+        pds_ev = AveragedPowerspectrum.from_events(
+            self.events, segment_size=self.segment_size, dt=self.dt, norm="abs")
         assert np.allclose(pds.power, pds_ev.power)
 
     @pytest.mark.parametrize("norm", ["frac", "abs", "none", "leahy"])
     def test_from_lc_works(self, norm):
-        pds = AveragedPowerspectrum.from_lightcurve(self.events.to_lc(self.dt), segment_size=self.segment_size, norm=norm)
-        pds_ev = AveragedPowerspectrum.from_events(self.events, segment_size=self.segment_size, dt=self.dt, norm=norm)
+        pds = AveragedPowerspectrum.from_lightcurve(
+            self.events.to_lc(self.dt), segment_size=self.segment_size, norm=norm)
+        pds_ev = AveragedPowerspectrum.from_events(
+            self.events, segment_size=self.segment_size, dt=self.dt, norm=norm)
         for attr in ["power", "freq", "m", "n", "nphots", "segment_size"]:
             assert np.allclose(getattr(pds, attr), getattr(pds_ev, attr))
 
