@@ -1,3 +1,4 @@
+import os
 import numpy as np
 from stingray.events import EventList
 from stingray.varenergyspectrum import VarEnergySpectrum
@@ -9,6 +10,9 @@ from stingray.lightcurve import Lightcurve
 
 from astropy.tests.helper import pytest
 np.random.seed(20150907)
+curdir = os.path.abspath(os.path.dirname(__file__))
+datadir = os.path.join(curdir, 'data')
+
 
 class DummyVarEnergy(VarEnergySpectrum):
     def _spectrum_function(self):
@@ -133,67 +137,19 @@ class TestVarEnergySpectrum(object):
         np.testing.assert_allclose(ref_lc.counts, [0, 0, 0, 0, 1, 1])
 
 
-class TestRMSEnergySpectrum(object):
+class TestRmsAndCovSpectrum(object):
     @classmethod
     def setup_class(cls):
         from ..simulator import Simulator
-        cls.rms = 0.2
-        cls.bin_time = 0.005
-        simulator = Simulator(cls.bin_time, 1000, rms=cls.rms, mean=200)
-        test_lc = simulator.simulate(1.5)
-        test_ev1, test_ev2 = EventList(), EventList()
-        test_ev1.simulate_times(test_lc)
-        test_ev2.simulate_times(test_lc)
-        test_ev1.energy = np.random.uniform(0.3, 12, len(test_ev1.time))
-        test_ev2.energy = np.random.uniform(0.3, 12, len(test_ev2.time))
+        cls.bin_time = 0.01
+        # simulator = Simulator(cls.bin_time, 1000, rms=cls.rms, mean=200)
+        # test_lc = simulator.simulate(1.5)
+        data = np.load(os.path.join(datadir, "sample_variable_lc.npy"))
+        flux = data / 100
+        times = np.arange(data.size) * cls.bin_time
 
-        cls.rmsspec_cross = RmsEnergySpectrum(test_ev1, freq_interval=[0.01, 20.],
-                                    energy_spec=(0.3, 12, 2, "lin"),
-                                    bin_time=cls.bin_time / 2,
-                                    segment_size=2, events2=test_ev2, norm="frac")
-        cls.rmsspec_pds = RmsEnergySpectrum(test_ev1, freq_interval=[0.01, 20.],
-                                    energy_spec=(0.3, 12, 2, "lin"),
-                                    bin_time=cls.bin_time / 2,
-                                    segment_size=2, norm="frac")
+        test_lc = Lightcurve(times, flux, err_dist="gauss", dt=0.01, skip_checks=True)
 
-    def test_correct_rms_values_vs_cross(self):
-        """The rms calculated with independent event lists (from the cospectrum)
-        is equivalent to the one calculated with one event list (from the PDS)"""
-        pds = self.rmsspec_pds.spectrum
-        cross = self.rmsspec_cross.spectrum
-        err = self.rmsspec_pds.spectrum_error
-        cerr = self.rmsspec_cross.spectrum_error
-        assert np.allclose(err, cerr, rtol=0.2)
-        assert np.allclose(pds, cross, atol=3 * err)
-
-    def test_correct_rms_values(self):
-        """The rms is close to 15% (less than 20%, because we do
-        not have infinite frequency resolution)"""
-        pds = self.rmsspec_pds.spectrum
-        err = self.rmsspec_pds.spectrum_error
-
-        assert np.allclose(pds, 0.15, atol=3 * err)
-
-    def test_rms_invalid_evlist_warns(self):
-        ev = EventList(time=[], energy=[], gti=self.rmsspec_cross.events1.gti)
-        with pytest.warns(UserWarning) as record:
-            rms = RmsEnergySpectrum(ev, [0., 100],
-                                    (0.3, 12, 5, "lin"),
-                                    bin_time=0.01,
-                                    segment_size=100,
-                                    events2=self.rmsspec_cross.events2)
-        assert np.all(np.isnan(rms.spectrum))
-        assert np.all(np.isnan(rms.spectrum_error))
-
-
-class TestCovarianceSpectrum(object):
-    @classmethod
-    def setup_class(cls):
-        from ..simulator import Simulator
-        cls.rms = 0.2
-        cls.bin_time = 0.005
-        simulator = Simulator(cls.bin_time, 1000, rms=cls.rms, mean=200)
-        test_lc = simulator.simulate(1.5)
         cls.test_ev1, cls.test_ev2 = EventList(), EventList()
         cls.test_ev1.simulate_times(test_lc)
         cls.test_ev2.simulate_times(test_lc)
@@ -204,15 +160,37 @@ class TestCovarianceSpectrum(object):
     def test_correct_rms_values_vs_cross(self, norm):
         """The rms calculated with independent event lists (from the cospectrum)
         is equivalent to the one calculated with one event list (from the PDS)"""
-        covar = CovarianceSpectrum(self.test_ev1, freq_interval=[0.01, 10.],
+
+        rmsspec_cross = RmsEnergySpectrum(self.test_ev1, freq_interval=[0.00001, 0.1],
                                     energy_spec=(0.3, 12, 2, "lin"),
                                     bin_time=self.bin_time / 2,
-                                    segment_size=2, norm=norm,
-                                    events2=self.test_ev2)
-        rmsspec = RmsSpectrum(self.test_ev1, freq_interval=[0.01, 10.],
+                                    segment_size=5000, events2=self.test_ev2, norm=norm)
+        rmsspec_pds = RmsEnergySpectrum(self.test_ev1, freq_interval=[0.00001, 0.1],
                                     energy_spec=(0.3, 12, 2, "lin"),
                                     bin_time=self.bin_time / 2,
-                                    segment_size=2, norm=norm)
+                                    segment_size=5000, norm=norm)
+        pds = rmsspec_pds.spectrum
+        cross = rmsspec_cross.spectrum
+        err = rmsspec_pds.spectrum_error
+        cerr = rmsspec_cross.spectrum_error
+        assert np.allclose(err, cerr, rtol=0.2)
+        assert np.allclose(pds, cross, atol=3 * err)
+
+        if norm == "frac":
+            assert np.allclose(pds, 0.20, atol=3 * err)
+
+    @pytest.mark.parametrize("norm", ["frac", "abs"])
+    def test_correct_rms_values_vs_cov(self, norm):
+        """The rms calculated with independent event lists (from the cospectrum)
+        is equivalent to the one calculated with one event list (from the PDS)"""
+        covar = CovarianceSpectrum(self.test_ev1, freq_interval=[0.00001, 0.1],
+                                    energy_spec=(0.3, 12, 2, "lin"),
+                                    bin_time=self.bin_time / 2,
+                                    segment_size=5000, norm=norm)
+        rmsspec = RmsSpectrum(self.test_ev1, freq_interval=[0.00001, 0.1],
+                                    energy_spec=(0.3, 12, 2, "lin"),
+                                    bin_time=self.bin_time / 2,
+                                    segment_size=5000, norm=norm)
 
         cov = covar.spectrum
         rms = rmsspec.spectrum
@@ -220,7 +198,7 @@ class TestCovarianceSpectrum(object):
 
         assert np.allclose(cov, rms, atol=3 * coverr)
 
-    def test_rms_invalid_evlist_warns(self):
+    def test_cov_invalid_evlist_warns(self):
         ev = EventList(time=[], energy=[], gti=self.test_ev1.gti)
         with pytest.warns(UserWarning) as record:
             rms = CovarianceSpectrum(ev, [0., 100],
@@ -230,17 +208,36 @@ class TestCovarianceSpectrum(object):
         assert np.all(np.isnan(rms.spectrum))
         assert np.all(np.isnan(rms.spectrum_error))
 
+    def test_rms_invalid_evlist_warns(self):
+        ev = EventList(time=[], energy=[], gti=self.test_ev1.gti)
+        with pytest.warns(UserWarning) as record:
+            rms = RmsEnergySpectrum(ev, [0., 100],
+                                    (0.3, 12, 5, "lin"),
+                                    bin_time=0.01,
+                                    segment_size=100,
+                                    events2=self.test_ev2)
+        assert np.all(np.isnan(rms.spectrum))
+        assert np.all(np.isnan(rms.spectrum_error))
+
 
 class TestLagEnergySpectrum(object):
     @classmethod
     def setup_class(cls):
         from ..simulator import Simulator
         dt = 0.01
-        cls.time_lag = 0.5
-        simulator = Simulator(dt, 4000, rms=0.2, mean=2000)
-        test_lc1 = simulator.simulate(2)
+        cls.time_lag = 5
+        data = np.load(os.path.join(datadir, "sample_variable_lc.npy"))
+        flux = data / 100
+        times = np.arange(data.size) * dt
+        maxfreq = 0.25 / cls.time_lag
+        roll_amount = int(cls.time_lag // dt)
+        good = slice(roll_amount, roll_amount + int(200 / dt))
+
+        rolled_flux = np.array(np.roll(flux, roll_amount))
+        times, flux, rolled_flux = times[good], flux[good], rolled_flux[good]
+        test_lc1 = Lightcurve(times, flux, err_dist="gauss", dt=dt, skip_checks=True)
         test_lc2 = Lightcurve(test_lc1.time,
-                              np.array(np.roll(test_lc1.counts, int(cls.time_lag // dt))),
+                              rolled_flux,
                               err_dist=test_lc1.err_dist,
                               dt=dt)
         test_ev1, test_ev2 = EventList(), EventList()
@@ -250,17 +247,16 @@ class TestLagEnergySpectrum(object):
         test_ev1.energy = np.random.uniform(0.3, 9, len(test_ev1.time))
         test_ev2.energy = np.random.uniform(9, 12, len(test_ev2.time))
 
-        cls.lag = LagEnergySpectrum(test_ev1, [0., 1],
-                                    (0.3, 9, 3, "lin"), [9, 12],
-                                    bin_time=0.01,
-                                    segment_size=10,
+        cls.lag = LagEnergySpectrum(test_ev1, [0., maxfreq],
+                                    (0.3, 9, 1, "lin"), [9, 12],
+                                    bin_time=dt / 2,
+                                    segment_size=199,
                                     events2=test_ev2)
 
     def test_lagspectrum_values_and_errors(self):
         assert np.all(np.abs(self.lag.spectrum - self.time_lag) < \
                       3 * self.lag.spectrum_error)
 
-    def test_lag_invalid_evlist_warns(self):
         ev = EventList(time=[], energy=[], gti=self.lag.events1.gti)
         with pytest.warns(UserWarning) as record:
             lag = LagSpectrum(ev, [0., 0.5],

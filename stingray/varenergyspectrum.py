@@ -805,11 +805,11 @@ class ComplexCovarianceSpectrum(VarEnergySpectrum):
             countrate_sub = self._get_ctrate(sub_events)
             Psnoise = poisson_level(countrate_sub, norm="abs")
 
-            _, cross, _, _, mean = avg_cs_from_events(sub_events, ref_events,
+            _, cross, _, _,_  = avg_cs_from_events(sub_events, ref_events,
                                                 self.gti, self.segment_size,
                                                 self.bin_time, silent=True,
                                                 norm="abs")
-            _, Ps, _, _, _ = avg_pds_from_events(sub_events, self.gti,
+            _, Ps, _, _, mean = avg_pds_from_events(sub_events, self.gti,
                                               self.segment_size, self.bin_time,
                                               silent=True, norm="abs")
             if cross is None or Ps is None:
