@@ -1296,4 +1296,4 @@ def get_segment_binned_array_idx(times, gti, segment_size):
     startidx, stopidx = bin_intervals_from_gtis(gti, segment_size, times)
 
     for idx0, idx1 in zip(startidx, stopidx):
-        yield times[idx0], times[min(idx1, times.size -1)], idx0, idx1
+        yield times[idx0], times[min(idx1, times.size - 1)], idx0, idx1

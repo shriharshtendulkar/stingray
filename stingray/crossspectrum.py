@@ -1274,7 +1274,7 @@ class AveragedCrossspectrum(Crossspectrum):
     @staticmethod
     def from_events(events1, events2, dt, segment_size, norm='none',
                     power_type="all", silent=False,
-                 fullspec=False, use_common_mean=True):
+                    fullspec=False, use_common_mean=True):
         from .fourier import normalize_crossspectrum as norm_cross
         from .fourier import avg_cs_from_events, avg_pds_from_events
         gti = cross_two_gtis(events1.gti, events2.gti)
@@ -1283,10 +1283,12 @@ class AveragedCrossspectrum(Crossspectrum):
             events1.time, events2.time, gti, segment_size, dt,
             norm=norm, use_common_mean=use_common_mean,
             fullspec=fullspec, silent=silent, power_type=power_type)
-        _, power1, _, _, mean1 = avg_pds_from_events(events1.time, gti, segment_size, dt,
+        _, power1, _, _, mean1 = avg_pds_from_events(
+            events1.time, gti, segment_size, dt,
             norm=norm, use_common_mean=use_common_mean,
             fullspec=fullspec, silent=silent, power_type=power_type)
-        _, power2, _, _, mean2 = avg_pds_from_events(events2.time, gti, segment_size, dt,
+        _, power2, _, _, mean2 = avg_pds_from_events(
+            events2.time, gti, segment_size, dt,
             norm=norm, use_common_mean=use_common_mean,
             fullspec=fullspec, silent=silent, power_type=power_type)
 
@@ -1315,11 +1317,13 @@ class AveragedCrossspectrum(Crossspectrum):
             norm=norm, use_common_mean=use_common_mean,
             fullspec=fullspec, silent=silent, power_type=power_type,
             counts1=lc1.counts, counts2=lc2.counts)
-        _, power1, _, _, mean1 = avg_pds_from_events(lc1.time, gti, segment_size, lc1.dt,
+        _, power1, _, _, mean1 = avg_pds_from_events(
+            lc1.time, gti, segment_size, lc1.dt,
             norm=norm, use_common_mean=use_common_mean,
             fullspec=fullspec, silent=silent, power_type=power_type,
             counts=lc1.counts)
-        _, power2, _, _, mean2 = avg_pds_from_events(lc2.time, gti, segment_size, lc1.dt,
+        _, power2, _, _, mean2 = avg_pds_from_events(
+            lc2.time, gti, segment_size, lc1.dt,
             norm=norm, use_common_mean=use_common_mean,
             fullspec=fullspec, silent=silent, power_type=power_type,
             counts=lc2.counts)

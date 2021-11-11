@@ -500,11 +500,12 @@ class AveragedPowerspectrum(AveragedCrossspectrum, Powerspectrum):
     @staticmethod
     def from_events(events, dt, segment_size, norm='none',
                     power_type="real", silent=False,
-                 fullspec=False, use_common_mean=True):
+                    fullspec=False, use_common_mean=True):
         from .fourier import normalize_crossspectrum as norm_cross
         from .fourier import avg_pds_from_events
 
-        freq, power, N, M, mean = avg_pds_from_events(events.time, events.gti, segment_size, dt,
+        freq, power, N, M, mean = avg_pds_from_events(
+            events.time, events.gti, segment_size, dt,
             norm=norm, use_common_mean=use_common_mean,
             fullspec=fullspec, silent=silent, power_type=power_type)
 
@@ -524,7 +525,8 @@ class AveragedPowerspectrum(AveragedCrossspectrum, Powerspectrum):
         from .fourier import normalize_crossspectrum as norm_cross
         from .fourier import avg_pds_from_events
 
-        freq, power, N, M, mean = avg_pds_from_events(lc.time, lc.gti, segment_size, lc.dt,
+        freq, power, N, M, mean = avg_pds_from_events(
+            lc.time, lc.gti, segment_size, lc.dt,
             norm=norm, use_common_mean=use_common_mean,
             fullspec=fullspec, silent=silent, power_type=power_type,
             counts=lc.counts)

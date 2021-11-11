@@ -1,12 +1,7 @@
 import warnings
-import glob
 from collections.abc import Iterable
-import matplotlib.pyplot as plt
-from astropy.table import Table
 import numpy as np
-from .gti import create_gti_from_condition, gti_border_bins
-from .gti import get_segment_events_idx, time_intervals_from_gtis, cross_two_gtis, get_segment_binned_array_idx
-
+from .gti import get_segment_events_idx, get_segment_binned_array_idx
 from .utils import histogram, show_progress
 
 try:
@@ -16,7 +11,6 @@ try:
 except ImportError:
     warnings.warn("pyfftw not installed. Using standard scipy fft")
     from scipy.fft import fft, fftfreq
-
 
 
 def poisson_level(meanrate=0, norm="abs"):
@@ -66,13 +60,13 @@ def normalize_frac(power, dt, N, mean):
     >>> np.isclose(pdsnorm[1:N//2].mean(), poisson_level(meanrate=meanrate,norm="frac"), rtol=0.01)
     True
     """
-#     (mean * N) / (mean /dt) = N * dt
-#     It's Leahy / meanrate;
-#     Nph = mean * N
-#     meanrate = mean / dt
-#     norm = 2 / (Nph * meanrate) = 2 * dt / (mean**2 * N)
+    #     (mean * N) / (mean /dt) = N * dt
+    #     It's Leahy / meanrate;
+    #     Nph = mean * N
+    #     meanrate = mean / dt
+    #     norm = 2 / (Nph * meanrate) = 2 * dt / (mean**2 * N)
 
-    return power * 2 * dt / (mean**2 * N)
+    return power * 2 * dt / (mean ** 2 * N)
 
 
 def normalize_abs(power, dt, N):
@@ -90,10 +84,10 @@ def normalize_abs(power, dt, N):
     >>> np.isclose(pdsnorm[1:N//2].mean(), poisson_level(meanrate=meanrate, norm="abs"), rtol=0.01)
     True
     """
-#     It's frac * meanrate**2; Leahy / meanrate * meanrate**2
-#     Nph = mean * N
-#     meanrate = mean / dt
-#     norm = 2 / (Nph * meanrate) * meanrate**2 = 2 * dt / (mean**2 * N) * mean**2 / dt**2
+    #     It's frac * meanrate**2; Leahy / meanrate * meanrate**2
+    #     Nph = mean * N
+    #     meanrate = mean / dt
+    #     norm = 2 / (Nph * meanrate) * meanrate**2 = 2 * dt / (mean**2 * N) * mean**2 / dt**2
 
     return power * 2 / N / dt
 
@@ -134,8 +128,7 @@ def normalize_leahy_poisson(power, Nph):
     return power * 2 / Nph
 
 
-def normalize_crossspectrum(unnorm_power, dt, N, mean, variance=None,
-                            norm="abs", power_type="all"):
+def normalize_crossspectrum(unnorm_power, dt, N, mean, variance=None, norm="abs", power_type="all"):
     """Wrapper around all the normalize_NORM methods."""
     if norm == "leahy" and variance is not None:
         pds = normalize_leahy_from_variance(unnorm_power, variance, N)
@@ -158,7 +151,7 @@ def normalize_crossspectrum(unnorm_power, dt, N, mean, variance=None,
     return pds
 
 
-def bias_term(C, P1, P2, P1noise, P2noise, N, intrinsic_coherence=1.):
+def bias_term(C, P1, P2, P1noise, P2noise, N, intrinsic_coherence=1.0):
     """Bias term from Ingram 2019.
 
     Parameters
@@ -246,7 +239,7 @@ def estimate_intrinsic_coherence(C, P1, P2, P1noise, P2noise, N):
         # TODO: make it only iterate over the places at low coherence
         old_coherence = new_coherence
         bsq = bias_term(C, P1, P2, P1noise, P2noise, N, intrinsic_coherence=new_coherence)
-#         old_coherence = new_coherence
+        #         old_coherence = new_coherence
         den = (P1 - P1noise) * (P2 - P2noise)
         num = (C * C.conj()).real - bsq
         num[num < 0] = (C * C.conj()).real[num < 0]
@@ -304,10 +297,10 @@ def error_on_cross_spectrum(C, Ps, Pr, N, Psnoise, Prnoise, common_ref="False"):
         dphi = np.sqrt(PoN * (Ps / (Gsq - bsq) - 1 / (Pr - Prnoise)))
     else:
         PrPs = Pr * Ps
-        dRe = np.sqrt((PrPs + C.real**2 - C.imag**2) / twoN)
-        dIm = np.sqrt((PrPs - C.real**2 + C.imag**2) / twoN)
+        dRe = np.sqrt((PrPs + C.real ** 2 - C.imag ** 2) / twoN)
+        dIm = np.sqrt((PrPs - C.real ** 2 + C.imag ** 2) / twoN)
         gsq = raw_coherence(C, Ps, Pr, Psnoise, Prnoise, N)
-        dphi = np.sqrt((1 - gsq) / (2 * gsq**2 * N))
+        dphi = np.sqrt((1 - gsq) / (2 * gsq ** 2 * N))
         dG = np.sqrt(PrPs / N)
 
     return dRe, dIm, dphi, dG
@@ -418,7 +411,9 @@ def get_fts_from_segments(times, gti, segment_size, N=None, counts=None):
 
     """
     if counts is None and N is None:
-        raise ValueError("At least one between counts (if light curve) and N (if events) has to be set")
+        raise ValueError(
+            "At least one between counts (if light curve) and N (if events) has to be set"
+        )
 
     fun = _which_segment_idx_fun(counts)
 
@@ -430,8 +425,7 @@ def get_fts_from_segments(times, gti, segment_size, N=None, counts=None):
         if counts is None:
             event_times = times[idx0:idx1]
             # counts, _ = np.histogram(event_times - s, bins=bins)
-            cts = histogram((event_times - s).astype(float), bins=N,
-                            range=[0, segment_size])
+            cts = histogram((event_times - s).astype(float), bins=N, range=[0, segment_size])
             Nph = idx1 - idx0
         else:
             cts = counts[idx0:idx1]
@@ -441,10 +435,18 @@ def get_fts_from_segments(times, gti, segment_size, N=None, counts=None):
         yield ft, Nph
 
 
-def avg_pds_from_events(times, gti, segment_size, dt,
-                        norm="abs", use_common_mean=True,
-                        fullspec=False, silent=False, power_type="all",
-                        counts=None):
+def avg_pds_from_events(
+    times,
+    gti,
+    segment_size,
+    dt,
+    norm="abs",
+    use_common_mean=True,
+    fullspec=False,
+    silent=False,
+    power_type="all",
+    counts=None,
+):
     """Calculate the average periodogram from a list of event times or a light curve.
 
     If the input is a light curve, the time array needs to be uniformly sampled
@@ -514,7 +516,9 @@ def avg_pds_from_events(times, gti, segment_size, dt,
         ctrate = get_total_ctrate(times, gti, segment_size, counts=counts)
         mean = ctrate * dt
 
-    for ft, nph in local_show_progress(get_fts_from_segments(times, gti, segment_size, N, counts=counts)):
+    for ft, nph in local_show_progress(
+        get_fts_from_segments(times, gti, segment_size, N, counts=counts)
+    ):
 
         if ft is None:
             continue
@@ -527,8 +531,9 @@ def avg_pds_from_events(times, gti, segment_size, dt,
         if not use_common_mean:
             mean = nph / N
 
-        cs_seg = normalize_crossspectrum(unnorm_power, dt, N, mean, norm=norm,
-                                         power_type=power_type)
+        cs_seg = normalize_crossspectrum(
+            unnorm_power, dt, N, mean, norm=norm, power_type=power_type
+        )
 
         if cross is None:
             cross = cs_seg
@@ -544,10 +549,21 @@ def avg_pds_from_events(times, gti, segment_size, dt,
     return freq, cross, N, M, mean
 
 
-def avg_cs_from_events(times1, times2, gti,
-                       segment_size, dt, norm="abs",
-                       use_common_mean=False, fullspec=False, common_ref=False,
-                       silent=False, power_type="all", counts1=None, counts2=None):
+def avg_cs_from_events(
+    times1,
+    times2,
+    gti,
+    segment_size,
+    dt,
+    norm="abs",
+    use_common_mean=False,
+    fullspec=False,
+    common_ref=False,
+    silent=False,
+    power_type="all",
+    counts1=None,
+    counts2=None,
+):
     """Calculate the average cross spectrum from a list of event times or a light curve.
 
     If the input is a light curve, the time arrays need to be uniformly sampled
@@ -624,10 +640,12 @@ def avg_cs_from_events(times1, times2, gti,
         ctrate = np.sqrt(ctrate1 * ctrate2)
         mean = ctrate * dt
 
-    for (ft1, nph1), (ft2, nph2) in local_show_progress(zip(
-        get_fts_from_segments(times1, gti, segment_size, N, counts=counts1),
-        get_fts_from_segments(times2, gti, segment_size, N, counts=counts2)
-    )):
+    for (ft1, nph1), (ft2, nph2) in local_show_progress(
+        zip(
+            get_fts_from_segments(times1, gti, segment_size, N, counts=counts1),
+            get_fts_from_segments(times2, gti, segment_size, N, counts=counts2),
+        )
+    ):
         if ft1 is None or ft2 is None:
             continue
 
@@ -640,8 +658,9 @@ def avg_cs_from_events(times1, times2, gti,
             nph = np.sqrt(nph1 * nph2)
             mean = nph / N
 
-            cs_seg = normalize_crossspectrum(unnorm_power, dt, N, mean, norm=norm,
-                                             power_type=power_type)
+            cs_seg = normalize_crossspectrum(
+                unnorm_power, dt, N, mean, norm=norm, power_type=power_type
+            )
         else:
             cs_seg = unnorm_power
 
@@ -654,8 +673,7 @@ def avg_cs_from_events(times1, times2, gti,
         return None, None, None, None, None
     cross /= M
     if use_common_mean:
-        cross = normalize_crossspectrum(cross, dt, N, mean, norm=norm,
-                                        power_type=power_type)
+        cross = normalize_crossspectrum(cross, dt, N, mean, norm=norm, power_type=power_type)
     if not fullspec:
         freq = freq[fgt0]
     return freq, cross, N, M, mean

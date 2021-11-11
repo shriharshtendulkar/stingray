@@ -126,7 +126,7 @@ class TestAveragedCrossspectrumEvents(object):
         tstart = 0.0
         tend = 1.0
         self.dt = np.longdouble(0.0001)
-        segment_size=1
+        segment_size = 1
         self.segment_size = segment_size
         N = np.rint(segment_size / self.dt).astype(int)
         # adjust dt
@@ -148,7 +148,7 @@ class TestAveragedCrossspectrumEvents(object):
 
     def test_from_events_works(self):
         lccs = AveragedCrossspectrum.from_events(self.events1, self.events2,
-                                         segment_size=1, dt=self.dt, norm='none',
+                                                 segment_size=1, dt=self.dt, norm='none',
                                                  use_common_mean=False)
         assert np.allclose(lccs.power.real, self.acs.power.real, rtol=0.01)
 
