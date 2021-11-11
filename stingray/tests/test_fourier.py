@@ -42,14 +42,15 @@ class TestFourier(object):
             assert np.allclose(fe, fc)
             assert ne == nc
 
+    @pytest.mark.parametrize("use_common_mean", [True, False])
     @pytest.mark.parametrize("norm", ["frac", "abs", "none", "leahy"])
-    def test_avg_pds_cts_and_events_are_equal(self, norm):
+    def test_avg_pds_cts_and_events_are_equal(self, norm, use_common_mean):
         out_ev = avg_pds_from_events(self.times, self.gti, self.segment_size, self.dt,
-                                     norm=norm, use_common_mean=True,
+                                     norm=norm, use_common_mean=use_common_mean,
                                      fullspec=False, silent=False, power_type="all",
                                      counts=None)
         out_ct = avg_pds_from_events(self.bin_times, self.gti, self.segment_size, self.dt,
-                                     norm=norm, use_common_mean=True,
+                                     norm=norm, use_common_mean=use_common_mean,
                                      fullspec=False, silent=False, power_type="all",
                                      counts=self.counts)
         for oe, oc in zip(out_ev, out_ct):
@@ -58,13 +59,14 @@ class TestFourier(object):
             else:
                 assert np.isclose(oe, oc)
 
+    @pytest.mark.parametrize("use_common_mean", [True, False])
     @pytest.mark.parametrize("norm", ["frac", "abs", "none", "leahy"])
-    def test_avg_cs_cts_and_events_are_equal(self, norm):
+    def test_avg_cs_cts_and_events_are_equal(self, norm, use_common_mean):
         out_ev = avg_cs_from_events(self.times, self.times2, self.gti, self.segment_size, self.dt,
-                                     norm=norm, use_common_mean=True,
+                                     norm=norm, use_common_mean=use_common_mean,
                                      fullspec=False, silent=False, power_type="all")
         out_ct = avg_cs_from_events(self.bin_times, self.bin_times, self.gti, self.segment_size, self.dt,
-                                     norm=norm, use_common_mean=True,
+                                     norm=norm, use_common_mean=use_common_mean,
                                      fullspec=False, silent=False, power_type="all",
                                      counts1=self.counts, counts2=self.counts2)
         for oe, oc in zip(out_ev, out_ct):
@@ -72,10 +74,6 @@ class TestFourier(object):
                 assert np.allclose(oe, oc)
             else:
                 assert np.isclose(oe, oc)
-
-
-
-
 
 
 class TestNorms(object):
