@@ -445,7 +445,12 @@ def avg_pds_from_events(times, gti, segment_size, dt,
                         norm="abs", use_common_mean=True,
                         fullspec=False, silent=False, power_type="all",
                         counts=None):
-    """Calculate the average periodogram from a list of event times.
+    """Calculate the average periodogram from a list of event times or a light curve.
+
+    If the input is a light curve, the time array needs to be uniformly sampled
+    inside GTIs (it can have gaps outside), and the counts need to be passed
+    through the ``counts`` array.
+    Otherwise, times are interpeted as photon arrival times.
 
     Parameters
     ----------
@@ -543,7 +548,12 @@ def avg_cs_from_events(times1, times2, gti,
                        segment_size, dt, norm="abs",
                        use_common_mean=False, fullspec=False, common_ref=False,
                        silent=False, power_type="all", counts1=None, counts2=None):
-    """Calculate the average cross spectrum from a list of event times.
+    """Calculate the average cross spectrum from a list of event times or a light curve.
+
+    If the input is a light curve, the time arrays need to be uniformly sampled
+    inside GTIs (they can have gaps outside), and the counts need to be passed
+    through the ``counts1`` and ``counts2`` arrays.
+    Otherwise, times are interpeted as photon arrival times
 
     Parameters
     ----------
