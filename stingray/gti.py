@@ -19,7 +19,7 @@ __all__ = ['load_gtis', 'check_gtis',
            'get_gti_from_hdu', 'get_gti_lengths', 'get_total_gti_length',
            'check_separate', 'append_gtis', 'join_gtis',
            'time_intervals_from_gtis', 'bin_intervals_from_gtis',
-           'gti_border_bins']
+           'gti_border_bins', 'get_segment_events_idx', 'get_segment_binned_array_idx']
 
 
 def gti_len(gti):
@@ -1162,13 +1162,6 @@ def bin_intervals_from_gtis(gtis, chunk_length, time, dt=None, fraction_step=1,
     for g0, g1 in zip(gti_low, gti_up):
         if (g1 - g0 + dt + epsilon_times_dt) < chunk_length:
             continue
-        # good_low = time >= g0
-        # good_up = time <= g1
-        #
-        # good = good_low & good_up
-        # t_good = time[good]
-        # if len(t_good) == 0:
-        #     continue
         startbin, stopbin = np.searchsorted(time, [g0, g1], "left")
         stopbin += 1
         if stopbin > time.size:
@@ -1286,3 +1279,21 @@ def get_segment_events_idx(times, gti, segment_size):
 
     for s, e, idx0, idx1 in zip(start, stop, startidx, stopidx):
         yield s, e, idx0, idx1
+
+
+def get_segment_binned_array_idx(times, gti, segment_size):
+    """Get the indices of events from different segments of the observation.
+
+    Parameters
+    ----------
+    times : float `np.array`
+        Array of times, uniformly sampled
+    gti : [[gti00, gti01], [gti10, gti11], ...]
+        good time intervals
+    segment_size : float
+        length of segments
+    """
+    startidx, stopidx = bin_intervals_from_gtis(gti, segment_size, times)
+
+    for idx0, idx1 in zip(startidx, stopidx):
+        yield times[idx0], times[min(idx1, times.size -1)], idx0, idx1

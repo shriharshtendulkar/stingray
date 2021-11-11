@@ -19,6 +19,68 @@ def test_norm():
 class TestFourier(object):
     @classmethod
     def setup_class(cls):
+        cls.dt = 1
+        cls.times = np.sort(np.random.uniform(0, 1000, 1000))
+        cls.gti = np.asarray([[0, 1000]])
+        cls.counts, bins = np.histogram(cls.times, bins=np.linspace(0, 1000, 1001))
+        cls.bin_times = (bins[:-1] + bins[1:]) / 2
+        cls.segment_size = 10.
+        cls.times2 = np.sort(np.random.uniform(0, 1000, 1000))
+        cls.counts2, _ = np.histogram(cls.times2, bins=np.linspace(0, 1000, 1001))
+
+    def test_ctrate_events(self):
+        assert get_total_ctrate(self.times, self.gti, self.segment_size) == 1.0
+
+    def test_ctrate_counts(self):
+        assert get_total_ctrate(self.bin_times, self.gti, self.segment_size, self.counts) == 1.0
+
+    def test_fts_from_segments_cts_and_events_are_equal(self):
+        N = 10
+        fts_evts = [(f, n) for (f, n) in get_fts_from_segments(self.times, self.gti, self.segment_size, N=N)]
+        fts_cts = [(f, n) for (f, n) in get_fts_from_segments(self.bin_times, self.gti, self.segment_size, counts=self.counts)]
+        for (fe, ne), (fc, nc) in zip(fts_evts, fts_cts):
+            assert np.allclose(fe, fc)
+            assert ne == nc
+
+    @pytest.mark.parametrize("norm", ["frac", "abs", "none", "leahy"])
+    def test_avg_pds_cts_and_events_are_equal(self, norm):
+        out_ev = avg_pds_from_events(self.times, self.gti, self.segment_size, self.dt,
+                                     norm=norm, use_common_mean=True,
+                                     fullspec=False, silent=False, power_type="all",
+                                     counts=None)
+        out_ct = avg_pds_from_events(self.bin_times, self.gti, self.segment_size, self.dt,
+                                     norm=norm, use_common_mean=True,
+                                     fullspec=False, silent=False, power_type="all",
+                                     counts=self.counts)
+        for oe, oc in zip(out_ev, out_ct):
+            if isinstance(oe, Iterable):
+                assert np.allclose(oe, oc)
+            else:
+                assert np.isclose(oe, oc)
+
+    @pytest.mark.parametrize("norm", ["frac", "abs", "none", "leahy"])
+    def test_avg_cs_cts_and_events_are_equal(self, norm):
+        out_ev = avg_cs_from_events(self.times, self.times2, self.gti, self.segment_size, self.dt,
+                                     norm=norm, use_common_mean=True,
+                                     fullspec=False, silent=False, power_type="all")
+        out_ct = avg_cs_from_events(self.bin_times, self.bin_times, self.gti, self.segment_size, self.dt,
+                                     norm=norm, use_common_mean=True,
+                                     fullspec=False, silent=False, power_type="all",
+                                     counts1=self.counts, counts2=self.counts2)
+        for oe, oc in zip(out_ev, out_ct):
+            if isinstance(oe, Iterable):
+                assert np.allclose(oe, oc)
+            else:
+                assert np.isclose(oe, oc)
+
+
+
+
+
+
+class TestNorms(object):
+    @classmethod
+    def setup_class(cls):
         cls.mean = cls.var = 100000
         cls.N = 800000
         cls.dt = 0.2

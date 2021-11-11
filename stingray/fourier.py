@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from astropy.table import Table
 import numpy as np
 from .gti import create_gti_from_condition, gti_border_bins
-from .gti import get_segment_events_idx, time_intervals_from_gtis, cross_two_gtis
+from .gti import get_segment_events_idx, time_intervals_from_gtis, cross_two_gtis, get_segment_binned_array_idx
 
 from .utils import histogram, show_progress
 
@@ -331,8 +331,20 @@ def cross_to_covariance(C, Pr, Prnoise, delta_nu):
     return C * np.sqrt(delta_nu / (Pr - Prnoise))
 
 
-def get_total_ctrate(times, gti, segment_size):
+def _which_segment_idx_fun(counts=None):
+    # Make function interface equal (counts gets ignored)
+    if counts is None:
+        return get_segment_events_idx
+    return get_segment_binned_array_idx
+
+
+def get_total_ctrate(times, gti, segment_size, counts=None):
     """Calculate the average count rate during the observation.
+
+    This function finds the same segments that the PDS will use and
+    returns the mean count rate.
+    If ``counts`` is ``None``, the input times are interpreted as events.
+    Otherwise, the number of events is taken from ``counts``
 
     Parameters
     ----------
@@ -343,18 +355,43 @@ def get_total_ctrate(times, gti, segment_size):
     segment_size : float
         length of segments
 
+    Other parameters
+    ----------------
+    counts : float `np.array`, default None
+        Array of counts per bin
+
+    Examples
+    --------
+    >>> times = np.sort(np.random.uniform(0, 1000, 1000))
+    >>> gti = np.asarray([[0, 1000]])
+    >>> counts, _ = np.histogram(times, bins=np.linspace(0, 1000, 11))
+    >>> bin_times = np.arange(50, 1000, 100)
+    >>> get_total_ctrate(bin_times, gti, 1000, counts=counts)
+    1.0
+    >>> get_total_ctrate(times, gti, 1000)
+    1.0
     """
     Nph = 0
     Nintvs = 0
-    for s, e, idx0, idx1 in get_segment_events_idx(times, gti, segment_size):
-        Nph += idx1 - idx0
+    func = _which_segment_idx_fun(counts)
+
+    for _, _, idx0, idx1 in func(times, gti, segment_size):
+        if counts is None:
+            Nph += idx1 - idx0
+        else:
+            Nph += np.sum(counts[idx0:idx1])
         Nintvs += 1
 
     return Nph / (Nintvs * segment_size)
 
 
-def get_fts_from_event_segments(times, gti, segment_size, N):
+def get_fts_from_segments(times, gti, segment_size, N=None, counts=None):
     """Get Fourier transforms from different segments of the observation.
+
+    If ``counts`` is ``None``, the input times are interpreted as events.
+    At least one between ``N`` and ``counts`` needs to be specified.
+    Otherwise, they are assumed uniformly binned inside each GTI, and the number
+    of events per bin is taken from ``counts``
 
     Parameters
     ----------
@@ -364,32 +401,50 @@ def get_fts_from_event_segments(times, gti, segment_size, N):
         good time intervals
     segment_size : float
         length of segments
-    N : int
+
+    Other parameters
+    ----------------
+    N : int, default None
         Number of bins to divide the ``segment_size`` in
+    counts : float `np.array`, default None
+        Array of counts per bin
 
     Returns
     -------
     ft : complex `np.array`
         the Fourier transform
-    N : int
+    Nph : int
         the number of photons in the segment.
+
     """
-    for s, e, idx0, idx1 in get_segment_events_idx(times, gti, segment_size):
+    if counts is None and N is None:
+        raise ValueError("At least one between counts (if light curve) and N (if events) has to be set")
+
+    fun = _which_segment_idx_fun(counts)
+
+    for s, e, idx0, idx1 in fun(times, gti, segment_size):
         if idx1 - idx0 < 2:
             yield None, None
             continue
-        event_times = times[idx0:idx1]
 
-        # counts, _ = np.histogram(event_times - s, bins=bins)
-        counts = histogram((event_times - s).astype(float), bins=N,
-                           range=[0, segment_size])
-        ft = fft(counts)
-        yield ft, idx1 - idx0
+        if counts is None:
+            event_times = times[idx0:idx1]
+            # counts, _ = np.histogram(event_times - s, bins=bins)
+            cts = histogram((event_times - s).astype(float), bins=N,
+                            range=[0, segment_size])
+            Nph = idx1 - idx0
+        else:
+            cts = counts[idx0:idx1]
+            Nph = np.sum(cts)
+
+        ft = fft(cts)
+        yield ft, Nph
 
 
 def avg_pds_from_events(times, gti, segment_size, dt,
                         norm="abs", use_common_mean=True,
-                        fullspec=False, silent=False, power_type="all"):
+                        fullspec=False, silent=False, power_type="all",
+                        counts=None):
     """Calculate the average periodogram from a list of event times.
 
     Parameters
@@ -422,6 +477,8 @@ def avg_pds_from_events(times, gti, segment_size, dt,
     power_type : str, default 'all'
         If 'all', give complex powers. If 'abs', the absolute value; if 'real',
         the real part
+    counts : float `np.array`, default None
+        Array of counts per bin
 
     Returns
     -------
@@ -437,7 +494,6 @@ def avg_pds_from_events(times, gti, segment_size, dt,
         the mean counts per bin
     """
     N = np.rint(segment_size / dt).astype(int)
-    # adjust dt
     dt = segment_size / N
 
     freq = fftfreq(N, dt)
@@ -450,10 +506,10 @@ def avg_pds_from_events(times, gti, segment_size, dt,
         local_show_progress = lambda a: a
 
     if use_common_mean:
-        ctrate = get_total_ctrate(times, gti, segment_size)
+        ctrate = get_total_ctrate(times, gti, segment_size, counts=counts)
         mean = ctrate * dt
 
-    for ft, nph in local_show_progress(get_fts_from_event_segments(times, gti, segment_size, N)):
+    for ft, nph in local_show_progress(get_fts_from_segments(times, gti, segment_size, N, counts=counts)):
 
         if ft is None:
             continue
@@ -486,7 +542,7 @@ def avg_pds_from_events(times, gti, segment_size, dt,
 def avg_cs_from_events(times1, times2, gti,
                        segment_size, dt, norm="abs",
                        use_common_mean=False, fullspec=False, common_ref=False,
-                       silent=False, power_type="all"):
+                       silent=False, power_type="all", counts1=None, counts2=None):
     """Calculate the average cross spectrum from a list of event times.
 
     Parameters
@@ -521,6 +577,10 @@ def avg_cs_from_events(times1, times2, gti,
     power_type : str, default 'all'
         If 'all', give complex powers. If 'abs', the absolute value; if 'real',
         the real part
+    counts1 : float `np.array`, default None
+        Array of counts per bin for channel 1
+    counts2 : float `np.array`, default None
+        Array of counts per bin for channel 2
 
     Returns
     -------
@@ -549,16 +609,15 @@ def avg_cs_from_events(times1, times2, gti,
         local_show_progress = lambda a: a
 
     if use_common_mean:
-        ctrate1 = get_total_ctrate(times1, gti, segment_size)
-        ctrate2 = get_total_ctrate(times2, gti, segment_size)
+        ctrate1 = get_total_ctrate(times1, gti, segment_size, counts=counts1)
+        ctrate2 = get_total_ctrate(times2, gti, segment_size, counts=counts2)
         ctrate = np.sqrt(ctrate1 * ctrate2)
         mean = ctrate * dt
 
     for (ft1, nph1), (ft2, nph2) in local_show_progress(zip(
-        get_fts_from_event_segments(times1, gti, segment_size, N),
-        get_fts_from_event_segments(times2, gti, segment_size, N)
+        get_fts_from_segments(times1, gti, segment_size, N, counts=counts1),
+        get_fts_from_segments(times2, gti, segment_size, N, counts=counts2)
     )):
-
         if ft1 is None or ft2 is None:
             continue
 
