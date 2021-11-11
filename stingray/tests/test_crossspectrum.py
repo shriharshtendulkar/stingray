@@ -160,7 +160,8 @@ class TestAveragedCrossspectrumEvents(object):
         pds_ev = AveragedCrossspectrum.from_events(
             self.events1, self.events2,
             segment_size=self.segment_size, dt=self.dt, norm=norm)
-        assert np.allclose(pds.power, pds_ev.power)
+        for attr in ["power", "freq", "m", "n", "nphots1", "nphots2", "segment_size"]:
+            assert np.allclose(getattr(pds, attr), getattr(pds_ev, attr))
 
     def test_it_works_with_events(self):
         lc1 = self.events1.to_lc(self.dt)

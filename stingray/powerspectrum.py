@@ -516,6 +516,9 @@ class AveragedPowerspectrum(AveragedCrossspectrum, Powerspectrum):
         cs.n = N
         cs.df = 1 / segment_size
         cs.nphots = mean * N
+        cs.fullspec = fullspec
+        cs.segment_size = segment_size
+
         return cs
 
     @staticmethod
@@ -538,6 +541,8 @@ class AveragedPowerspectrum(AveragedCrossspectrum, Powerspectrum):
         cs.n = N
         cs.df = 1 / segment_size
         cs.nphots = mean * N
+        cs.fullspec = fullspec
+        cs.segment_size = segment_size
         return cs
 
     def _make_segment_spectrum(self, lc, segment_size, silent=False):

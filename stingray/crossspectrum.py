@@ -1244,7 +1244,6 @@ class AveragedCrossspectrum(Crossspectrum):
 
         self.type = "crossspectrum"
 
-
         self.segment_size = segment_size
         self.power_type = power_type
         self.fullspec = fullspec
@@ -1302,6 +1301,8 @@ class AveragedCrossspectrum(Crossspectrum):
         cs.df = 1 / segment_size
         cs.nphots1 = mean1 * N
         cs.nphots2 = mean2 * N
+        cs.fullspec = fullspec
+        cs.segment_size = segment_size
 
         return cs
 
@@ -1338,6 +1339,8 @@ class AveragedCrossspectrum(Crossspectrum):
         cs.df = 1 / segment_size
         cs.nphots1 = mean1 * N
         cs.nphots2 = mean2 * N
+        cs.fullspec = fullspec
+        cs.segment_size = segment_size
 
         return cs
 
