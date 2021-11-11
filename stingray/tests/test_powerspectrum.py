@@ -32,6 +32,12 @@ class TestAveragedPowerspectrumEvents(object):
         pds_ev = AveragedPowerspectrum.from_events(self.events, segment_size=self.segment_size, dt=self.dt, norm="abs")
         assert np.allclose(pds.power, pds_ev.power)
 
+    @pytest.mark.parametrize("norm", ["frac", "abs", "none", "leahy"])
+    def test_from_lc_works(self, norm):
+        pds = AveragedPowerspectrum.from_lightcurve(self.events.to_lc(self.dt), segment_size=self.segment_size, norm=norm)
+        pds_ev = AveragedPowerspectrum.from_events(self.events, segment_size=self.segment_size, dt=self.dt, norm=norm)
+        assert np.allclose(pds.power, pds_ev.power)
+
     def test_init_without_segment(self):
         with pytest.raises(ValueError):
             assert AveragedPowerspectrum(self.lc, dt=self.dt)

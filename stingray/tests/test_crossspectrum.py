@@ -127,6 +127,7 @@ class TestAveragedCrossspectrumEvents(object):
         tend = 1.0
         self.dt = np.longdouble(0.0001)
         segment_size=1
+        self.segment_size = segment_size
         N = np.rint(segment_size / self.dt).astype(int)
         # adjust dt
         self.dt = segment_size / N
@@ -150,6 +151,16 @@ class TestAveragedCrossspectrumEvents(object):
                                          segment_size=1, dt=self.dt, norm='none',
                                                  use_common_mean=False)
         assert np.allclose(lccs.power.real, self.acs.power.real, rtol=0.01)
+
+    @pytest.mark.parametrize("norm", ["frac", "abs", "none", "leahy"])
+    def test_from_lc_works(self, norm):
+        pds = AveragedCrossspectrum.from_lightcurve(
+            self.events1.to_lc(self.dt), self.events2.to_lc(self.dt),
+            segment_size=self.segment_size, norm=norm)
+        pds_ev = AveragedCrossspectrum.from_events(
+            self.events1, self.events2,
+            segment_size=self.segment_size, dt=self.dt, norm=norm)
+        assert np.allclose(pds.power, pds_ev.power)
 
     def test_it_works_with_events(self):
         lc1 = self.events1.to_lc(self.dt)

@@ -1303,6 +1303,40 @@ class AveragedCrossspectrum(Crossspectrum):
 
         return cs
 
+    @staticmethod
+    def from_lightcurve(lc1, lc2, segment_size, norm='none',
+                        power_type="all", silent=False,
+                        fullspec=False, use_common_mean=True):
+        from .fourier import avg_cs_from_events, avg_pds_from_events
+        gti = cross_two_gtis(lc1.gti, lc2.gti)
+
+        freq, power, N, M, mean = avg_cs_from_events(
+            lc1.time, lc2.time, gti, segment_size, lc1.dt,
+            norm=norm, use_common_mean=use_common_mean,
+            fullspec=fullspec, silent=silent, power_type=power_type,
+            counts1=lc1.counts, counts2=lc2.counts)
+        _, power1, _, _, mean1 = avg_pds_from_events(lc1.time, gti, segment_size, lc1.dt,
+            norm=norm, use_common_mean=use_common_mean,
+            fullspec=fullspec, silent=silent, power_type=power_type,
+            counts=lc1.counts)
+        _, power2, _, _, mean2 = avg_pds_from_events(lc2.time, gti, segment_size, lc1.dt,
+            norm=norm, use_common_mean=use_common_mean,
+            fullspec=fullspec, silent=silent, power_type=power_type,
+            counts=lc2.counts)
+
+        cs = AveragedCrossspectrum()
+        cs.freq = freq
+        cs.power = power
+        cs.pds1 = power1
+        cs.pds2 = power2
+        cs.m = M
+        cs.n = N
+        cs.df = 1 / segment_size
+        cs.nphots1 = mean1 * N
+        cs.nphots2 = mean2 * N
+
+        return cs
+
     def _make_auxil_pds(self, lc1, lc2):
         """
         Helper method to create the power spectrum of both light curves
