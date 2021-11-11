@@ -2,16 +2,61 @@
 import numpy as np
 import warnings
 from stingray.gti import check_separate, cross_two_gtis, create_gti_mask, check_gtis, bin_intervals_from_gtis, get_total_gti_length
+from stingray.events import EventList
 from stingray.lightcurve import Lightcurve
 from stingray.utils import assign_value_if_none, simon, excess_variance, show_progress,equal_count_energy_ranges
 from stingray.crossspectrum import AveragedCrossspectrum
-from stingray.fourier import avg_cs_from_events, avg_pds_from_events, fftfreq
+from stingray.fourier import avg_cs_from_events, avg_pds_from_events, fftfreq, get_total_ctrate
 from stingray.fourier import poisson_level, error_on_cross_spectrum, cross_to_covariance
 from abc import ABCMeta, abstractmethod
 import six
 
 
 __all__ = ["VarEnergySpectrum", "RmsEnergySpectrum", "RmsSpectrum", "LagEnergySpectrum", "LagSpectrum", "ExcessVarianceSpectrum", "CovarianceSpectrum", "ComplexCovarianceSpectrum", "CountSpectrum"]
+
+
+def get_non_overlapping_ref_band(channel_band, ref_band):
+        """
+        Ensures that the ``channel_band`` (i.e. the band of interest) is
+        not contained within the ``ref_band`` (i.e. the reference band)
+
+        Parameters
+        ----------
+        channel_band : iterable of type ``[elow, ehigh]``
+            The lower/upper limits of the energies to be contained in the band
+            of interest
+
+        ref_band : iterable
+            The lower/upper limits of the energies in the reference band
+
+        Returns
+        -------
+        ref_intervals : iterable
+            The channels that are both in the reference band in not in the
+            bands of interest
+
+        Examples
+        --------
+        >>> channel_band = [2, 3]
+        >>> ref_band = [[0, 10]]
+        >>> new_ref = get_non_overlapping_ref_band(channel_band, ref_band)
+        >>> np.allclose(new_ref, [[0, 2], [3, 10]])
+        True
+        >>> new_ref = get_non_overlapping_ref_band([0, 1], [[2, 3]])
+        >>> np.allclose(new_ref, [[2, 3]])
+        True
+        """
+        channel_band = np.asarray(channel_band)
+        ref_band = np.asarray(ref_band)
+        if len(ref_band.shape) <= 1:
+            ref_band = np.asarray([ref_band])
+        if check_separate(ref_band, [channel_band]):
+            return np.asarray(ref_band)
+        not_channel_band = [[0, channel_band[0]],
+                            [channel_band[1], np.max([np.max(ref_band),
+                                                      channel_band[1] + 1])]]
+
+        return cross_two_gtis(ref_band, not_channel_band)
 
 
 def _decode_energy_specification(energy_spec):
@@ -122,13 +167,19 @@ class VarEnergySpectrum(object):
     """
 
     def __init__(self, events, freq_interval, energy_spec, ref_band=None,
-                 bin_time=1, use_pi=False, segment_size=None, events2=None):
+                 bin_time=1, use_pi=False, segment_size=None, events2=None,
+                 return_complex=False):
 
         self.events1 = events
         self.events2 = assign_value_if_none(events2, events)
+        self._analyze_inputs()
+        # This will be set to True in ComplexCovariance
+        self.return_complex = return_complex
+
         self.freq_interval = freq_interval
         self.use_pi = use_pi
         self.bin_time = bin_time
+
         if isinstance(energy_spec, tuple):
             energies = _decode_energy_specification(energy_spec)
         else:
@@ -142,15 +193,40 @@ class VarEnergySpectrum(object):
         if len(self.ref_band.shape) <= 1:
             self.ref_band = np.asarray([self.ref_band])
 
-        self.segment_size = segment_size
+        self.segment_size = self.delta_nu = None
+        if segment_size is not None:
+            self.segment_size = segment_size
+            self.delta_nu = 1 / self.segment_size
+
+        self._create_empty_spectrum()
 
         if len(events.time) == 0:
             simon("There are no events in your event list!" +
                   "Can't make a spectrum!")
-            self.spectrum = 0
-            self.spectrum_error = 0
         else:
-            self.spectrum, self.spectrum_error = self._spectrum_function()
+            self._spectrum_function()
+
+    def _analyze_inputs(self):
+        events1 = self.events1
+        events2 = self.events2
+        common_gti = events1.gti
+        if events2 is None or events2 is events1:
+            self.events2 = self.events1
+            self.same_events = True
+        else:
+            common_gti = cross_two_gtis(events1.gti, events2.gti)
+            self.same_events = False
+        self.gti = common_gti
+
+    def _create_empty_spectrum(self):
+
+        if self.return_complex:
+            dtype = complex
+        else:
+            dtype = float
+
+        self.spectrum = np.zeros(len(self.energy_intervals), dtype=dtype) + np.nan
+        self.spectrum_error = np.zeros_like(self.spectrum, dtype=dtype) + np.nan
 
     def _get_events_from_energy_range(self, events, erange):
         energies = events.energy
@@ -162,70 +238,54 @@ class VarEnergySpectrum(object):
         energies = events.energy
         mask = (energies >= erange[0]) & (energies < erange[1])
         return events.time[mask]
+    
+    def _get_good_frequency_bins(self, freq=None):
+        if freq is None:
+            N = np.rint(self.segment_size / self.bin_time)
+            freq = fftfreq(int(N), self.bin_time)
+            freq = freq[freq > 0]
+        good = (freq >= self.freq_interval[0]) & (freq < self.freq_interval[1])
+        return good
+    
+    def _get_ctrate(self, events):
+        if isinstance(events, EventList):
+            events = events.time
+        return get_total_ctrate(events, self.gti, self.segment_size)
 
-    def _decide_ref_intervals(self, channel_band, ref_band):
-        """
-        Ensures that the ``channel_band`` (i.e. the band of interest) is
-        not contained within the ``ref_band`` (i.e. the reference band)
-
-        Parameters
-        ----------
-        channel_band : iterable of type ``[elow, ehigh]``
-            The lower/upper limits of the energies to be contained in the band
-            of interest
-
-        ref_band : iterable
-            The lower/upper limits of the energies in the reference band
-
-        Returns
-        -------
-        ref_intervals : iterable
-            The channels that are both in the reference band in not in the
-            bands of interest
-        """
-        channel_band = np.asarray(channel_band)
-        ref_band = np.asarray(ref_band)
-        if len(ref_band.shape) <= 1:
-            ref_band = np.asarray([ref_band])
-        if check_separate(ref_band, [channel_band]):
-            return np.asarray(ref_band)
-        not_channel_band = [[0, channel_band[0]],
-                            [channel_band[1], np.max([np.max(ref_band),
-                                                      channel_band[1] + 1])]]
-
-        return cross_two_gtis(ref_band, not_channel_band)
+    def _decide_ref_intervals(self, *args):
+        return get_non_overlapping_ref_band(*args)
 
     def _construct_lightcurves(self, channel_band, tstart=None, tstop=None,
                                exclude=True, only_base=False):
         """
         Construct light curves from event data, for each band of interest.
-
+    
         Parameters
         ----------
         channel_band : iterable of type ``[elow, ehigh]``
             The lower/upper limits of the energies to be contained in the band
             of interest
-
+    
         tstart : float, optional, default ``None``
             A common start time (if start of observation is different from
             the first recorded event)
-
+    
         tstop : float, optional, default ``None``
             A common stop time (if start of observation is different from
             the first recorded event)
-
+    
         exclude : bool, optional, default ``True``
             if ``True``, exclude the band of interest from the reference band
-
+    
         only_base : bool, optional, default ``False``
             if ``True``, only return the light curve of the channel of interest, not
             that of the reference band
-
+    
         Returns
         -------
         base_lc : :class:`Lightcurve` object
             The light curve of the channels of interest
-
+    
         ref_lc : :class:`Lightcurve` object (only returned if ``only_base`` is ``False``)
             The reference light curve for comparison with ``base_lc``
         """
@@ -235,12 +295,12 @@ class VarEnergySpectrum(object):
         else:
             energies2 = self.events2.energy
             energies1 = self.events1.energy
-
+    
         gti = cross_two_gtis(self.events1.gti, self.events2.gti)
-
+    
         tstart = assign_value_if_none(tstart, gti[0, 0])
         tstop = assign_value_if_none(tstop, gti[-1, -1])
-
+    
         good = (energies1 >= channel_band[0]) & (energies1 < channel_band[1])
         base_lc = Lightcurve.make_lightcurve(self.events1.time[good],
                                              self.bin_time,
@@ -248,21 +308,21 @@ class VarEnergySpectrum(object):
                                              tseg=tstop - tstart,
                                              gti=gti,
                                              mjdref=self.events1.mjdref)
-
+    
         if only_base:
             return base_lc
-
+    
         if exclude:
             ref_intervals = self._decide_ref_intervals(channel_band,
                                                        self.ref_band)
         else:
             ref_intervals = self.ref_band
-
+    
         ref_lc = Lightcurve(base_lc.time, np.zeros_like(base_lc.counts),
                             gti=base_lc.gti, mjdref=base_lc.mjdref,
                             dt=base_lc.dt,
                             err_dist=base_lc.err_dist, skip_checks=True)
-
+    
         for i in ref_intervals:
             good = (energies2 >= i[0]) & (energies2 < i[1])
             new_lc = Lightcurve.make_lightcurve(self.events2.time[good],
@@ -272,13 +332,13 @@ class VarEnergySpectrum(object):
                                                 gti=base_lc.gti,
                                                 mjdref=self.events2.mjdref)
             ref_lc = ref_lc + new_lc
-
+    
         ref_lc.err_dist = base_lc.err_dist
         return base_lc, ref_lc
 
     @abstractmethod
     def _spectrum_function(self):
-        pass
+        raise NotImplementedError("This is a base class. It is not meant to be used by itself.")
 
 
 class RmsSpectrum(VarEnergySpectrum):
@@ -334,75 +394,63 @@ class RmsSpectrum(VarEnergySpectrum):
     spectrum_error : array-like
         the errorbars corresponding to spectrum
     """
+    def __init__(self, events, energy_spec, ref_band=None,
+                 freq_interval=[0, 1],
+                 bin_time=1, use_pi=False, segment_size=None, events2=None,
+                 norm="abs"):
+
+        self.norm = norm
+        VarEnergySpectrum.__init__(self, events, freq_interval=freq_interval,
+                                   energy_spec=energy_spec,
+                                   bin_time=bin_time, use_pi=use_pi,
+                                   ref_band=ref_band,
+                                   segment_size=segment_size, events2=events2)
 
     def _spectrum_function(self):
-        events1 = self.events1
-        events2 = self.events2
-        common_gti = events1.gti
-        if events2 is None or events2 is events1:
-            events2 = events1
-            same_events = True
-        else:
-            common_gti = cross_two_gtis(events1.gti, events2.gti)
-            same_events = False
 
-        spec = np.zeros(len(self.energy_intervals))
-        spec_err = np.zeros_like(spec)
-
-        N = np.rint(self.segment_size / self.bin_time)
-        delta_nu = 1 / self.segment_size
-        freq = fftfreq(int(N), self.bin_time)
-        freq = freq[freq > 0]
-        good = (freq >= self.freq_interval[0]) & (freq < self.freq_interval[1])
-
+        good = self._get_good_frequency_bins()
         Mave = np.count_nonzero(good)
-        delta_nu_after_mean = delta_nu * Mave
-
-        f = (self.freq_interval[0] + self.freq_interval[1]) / 2
+        delta_nu_after_mean = self.delta_nu * Mave
 
         for i, eint in enumerate(show_progress(self.energy_intervals)):
-            sub_events = self._get_times_from_energy_range(events1, eint)
-            countrate_sub = sub_events.size / get_total_gti_length(common_gti,
-                                                                   minlen=self.segment_size)
+            sub_events = self._get_times_from_energy_range(self.events1, eint)
+            countrate_sub = self._get_ctrate(sub_events)
             Psnoise = poisson_level(countrate_sub, norm="abs")
 
-            if not same_events:
-                ref_events = self._get_times_from_energy_range(events2, eint)
-                countrate_ref = ref_events.size / get_total_gti_length(
-                    common_gti,
-                    minlen=self.segment_size)
+            if not self.same_events:
+                ref_events = self._get_times_from_energy_range(self.events2, eint)
+                countrate_ref = self._get_ctrate(ref_events)
                 Prnoise = poisson_level(countrate_ref, norm="abs")
+
                 _, cross, N, M, mean = avg_cs_from_events(
-                    sub_events, ref_events, common_gti, self.segment_size,
+                    sub_events, ref_events, self.gti, self.segment_size,
                     self.bin_time, silent=True, norm="abs")
+                
                 Pmean = np.mean(cross[good])
                 Pnoise = 0
                 rmsnoise = np.sqrt(delta_nu_after_mean * np.sqrt(Psnoise*Prnoise))
-                meanrate = mean / self.bin_time
             else:
-                _, Ps, N, M, mean = avg_pds_from_events(sub_events, common_gti,
+                _, Ps, N, M, mean = avg_pds_from_events(sub_events, self.gti,
                                                   self.segment_size, self.bin_time,
                                                   silent=True, norm="abs")
                 Pmean = np.mean(Ps[good])
                 Pnoise = Psnoise
                 rmsnoise = np.sqrt(delta_nu_after_mean * Pnoise)
 
-                meanrate = mean / self.bin_time
-
-            # Assume coherence 1
-            # rmsnoise = np.sqrt(delta_nu_after_mean * Pnoise)
+            meanrate = mean / self.bin_time
 
             rms = np.sqrt(np.abs(Pmean - Pnoise) * delta_nu_after_mean)
 
+            # Assume coherence 0, use Ingram+2019
             num = rms**4 + rmsnoise**4 + 2 * rms * rmsnoise
             den = 4 * M * Mave * rms**2
 
             rms_err = np.sqrt(num / den)
+            if self.norm == "frac":
+                rms, rms_err = rms / meanrate, rms_err / meanrate
 
-            spec[i] = rms / meanrate
-            spec_err[i] = rms_err / meanrate
-
-        return spec, spec_err
+            self.spectrum[i] = rms
+            self.spectrum_error[i] = rms_err
 
 
 RmsEnergySpectrum = RmsSpectrum
@@ -544,17 +592,13 @@ class CountSpectrum(VarEnergySpectrum):
 
     def _spectrum_function(self):
         events = self.events1
-        spec = np.zeros(len(self.energy_intervals))
-        spec_err = np.zeros_like(spec)
 
         for i, eint in show_progress(enumerate(self.energy_intervals)):
             sub_events = self._get_times_from_energy_range(events, eint)
 
             sp = sub_events.size
-            spec[i] = sp
-            spec_err[i] = np.sqrt(sp)
-
-        return spec, spec_err
+            self.spectrum[i] = sp
+            self.spectrum_error[i] = np.sqrt(sp)
 
 
 class LagSpectrum(VarEnergySpectrum):
@@ -621,46 +665,31 @@ class LagSpectrum(VarEnergySpectrum):
                                    segment_size=segment_size, events2=events2)
 
     def _spectrum_function(self):
-        events1 = self.events1
-        events2 = self.events2
-        common_gti = events1.gti
-        if events2 is None or events2 is events1:
-            events2 = events1
-            same_events = True
-        else:
-            common_gti = cross_two_gtis(events1.gti, events2.gti)
-            same_events = False
-
-        spec = np.zeros(len(self.energy_intervals)) + np.nan
-        spec_err = np.zeros_like(spec) + np.nan
-
-        ref_events = self._get_times_from_energy_range(events2,
+        ref_events = self._get_times_from_energy_range(self.events2,
                                                        self.ref_band[0])
-        countrate_ref = ref_events.size / get_total_gti_length(common_gti,
-                                                               minlen=self.segment_size)
+        countrate_ref = self._get_ctrate(ref_events)
         Prnoise = poisson_level(countrate_ref, norm="abs")
-        freq, Pr, N, M, mean = avg_pds_from_events(ref_events, common_gti,
+        freq, Pr, N, M, mean = avg_pds_from_events(ref_events, self.gti,
                                              self.segment_size, self.bin_time,
                                              silent=True, norm="abs")
 
-        good = (freq >= self.freq_interval[0]) & (freq < self.freq_interval[1])
+        good = self._get_good_frequency_bins(freq)
         Prmean = np.mean(Pr[good])
         Mave = np.count_nonzero(good)
+
         Mtot = Mave * M
 
         f = (self.freq_interval[0] + self.freq_interval[1]) / 2
-        import matplotlib.pyplot as plt
         for i, eint in enumerate(show_progress(self.energy_intervals)):
-            sub_events = self._get_times_from_energy_range(events1, eint)
-            countrate_sub = sub_events.size / get_total_gti_length(common_gti,
-                                                                   minlen=self.segment_size)
+            sub_events = self._get_times_from_energy_range(self.events1, eint)
+            countrate_sub = self._get_ctrate(sub_events)
             Psnoise = poisson_level(countrate_sub, norm="abs")
 
             _, cross, _, _, _ = avg_cs_from_events(sub_events, ref_events,
-                                                common_gti, self.segment_size,
+                                                self.gti, self.segment_size,
                                                 self.bin_time, silent=True,
                                                 norm="abs")
-            _, Ps, _, _, _ = avg_pds_from_events(sub_events, common_gti,
+            _, Ps, _, _, _ = avg_pds_from_events(sub_events, self.gti,
                                               self.segment_size, self.bin_time,
                                               silent=True, norm="abs")
 
@@ -670,19 +699,17 @@ class LagSpectrum(VarEnergySpectrum):
             Cmean = np.mean(cross[good])
             Psmean = np.mean(Ps[good])
 
-            common_ref = same_events and len(
+            common_ref = self.same_events and len(
                 cross_two_gtis([eint], self.ref_band)) > 0
 
             _, _, phi_e, _ = error_on_cross_spectrum(
                 Cmean, Psmean, Prmean, Mtot, Psnoise, Prnoise,
                 common_ref=common_ref)
 
-            lag = np.mean((np.angle(cross) / (2 * np.pi * freq))[good])
+            lag = np.mean((np.angle(cross[good]) / (2 * np.pi * freq[good])))
             lag_e = phi_e / (2 * np.pi * f)
-            spec[i] = lag
-            spec_err[i] = lag_e
-
-        return spec, spec_err
+            self.spectrum[i] = lag
+            self.spectrum_error[i] = lag_e
 
 
 LagEnergySpectrum = LagSpectrum
@@ -757,63 +784,42 @@ class ComplexCovarianceSpectrum(VarEnergySpectrum):
                                    segment_size=segment_size, events2=events2)
 
     def _spectrum_function(self):
-        events1 = self.events1
-        common_gti = events1.gti
-        if self.events2 is None or self.events2 is self.events1:
-            events2 = self.events1
-            same_events = True
-        else:
-            common_gti = cross_two_gtis(events1.gti, events2.gti)
-            same_events = False
-
-        if self.return_complex:
-            dtype = complex
-        else:
-            dtype = float
-        spec = np.zeros(len(self.energy_intervals), dtype=dtype) + np.nan
-        spec_err = np.zeros_like(spec) + np.nan
-        df = 1 / self.segment_size
-
-        ref_events = self._get_times_from_energy_range(events2,
+        ref_events = self._get_times_from_energy_range(self.events2,
                                                        self.ref_band[0])
-        countrate_ref = ref_events.size / get_total_gti_length(common_gti,
-                                                               minlen=self.segment_size)
-        Prnoise = poisson_level(countrate_ref, norm=self.norm)
+        countrate_ref = self._get_ctrate(ref_events)
+        Prnoise = poisson_level(countrate_ref, norm="abs")
 
-        freq, Pr, N, M, mean = avg_pds_from_events(ref_events, common_gti,
+        freq, Pr, N, M, _ = avg_pds_from_events(ref_events, self.gti,
                                              self.segment_size, self.bin_time,
-                                             silent=True, norm=self.norm)
+                                             silent=True, norm="abs")
 
         good = (freq >= self.freq_interval[0]) & (freq < self.freq_interval[1])
         Mave = np.count_nonzero(good)
         Prmean = np.mean(Pr[good])
 
         Mtot = M * Mave
-        delta_nu = Mave * df
+        delta_nu = Mave * self.delta_nu
 
         for i, eint in enumerate(show_progress(self.energy_intervals)):
-            sub_events = self._get_times_from_energy_range(events1, eint)
-            countrate_sub = sub_events.size / get_total_gti_length(common_gti,
-                                                                   minlen=self.segment_size)
-            Psnoise = poisson_level(countrate_sub, norm=self.norm)
+            sub_events = self._get_times_from_energy_range(self.events1, eint)
+            countrate_sub = self._get_ctrate(sub_events)
+            Psnoise = poisson_level(countrate_sub, norm="abs")
 
-            _, cross, _, _, _ = avg_cs_from_events(sub_events, ref_events,
-                                                common_gti, self.segment_size,
+            _, cross, _, _, mean = avg_cs_from_events(sub_events, ref_events,
+                                                self.gti, self.segment_size,
                                                 self.bin_time, silent=True,
-                                                norm=self.norm)
-            _, Ps, _, _, _ = avg_pds_from_events(sub_events, common_gti,
+                                                norm="abs")
+            _, Ps, _, _, _ = avg_pds_from_events(sub_events, self.gti,
                                               self.segment_size, self.bin_time,
-                                              silent=True, norm=self.norm)
+                                              silent=True, norm="abs")
             if cross is None or Ps is None:
                 continue
 
-            common_ref = same_events and len(
+            common_ref = self.same_events and len(
                 cross_two_gtis([eint], self.ref_band)) > 0
             if common_ref:
-                noise_term = Psnoise
-                if self.norm == "frac":
-                    noise_term *= countrate_sub / countrate_ref
                 cross -= Psnoise
+
             Cmean = np.mean(cross[good])
             Cmean_real = np.abs(Cmean)
 
@@ -828,10 +834,12 @@ class ComplexCovarianceSpectrum(VarEnergySpectrum):
             cov, cov_e = cross_to_covariance(np.asarray([Cmean, Ce]), Prmean,
                                              Prnoise, delta_nu)
 
-            spec[i] = cov
-            spec_err[i] = cov_e
+            if self.norm == "frac":
+                meanrate = mean / self.bin_time
+                cov, cov_e = cov / meanrate, cov_e / meanrate
 
-        return spec, spec_err
+            self.spectrum[i] = cov
+            self.spectrum_error[i] = cov_e
 
 
 class CovarianceSpectrum(ComplexCovarianceSpectrum):
