@@ -1480,8 +1480,14 @@ def equal_count_energy_ranges(energies, n_ranges, emin=None, emax=None):
     Examples
     --------
     >>> energies = np.random.uniform(0, 10, 1000000)
+    >>> edges = equal_count_energy_ranges(energies, 5, emin=0, emax=10)
+    >>> np.allclose(edges, [0, 2, 4, 6, 8, 10], atol=0.05)
+    True
     >>> edges = equal_count_energy_ranges(energies, 5)
     >>> np.allclose(edges, [0, 2, 4, 6, 8, 10], atol=0.05)
+    True
+    >>> edges = equal_count_energy_ranges(energies, 0)
+    >>> np.allclose(edges, [0, 10], atol=0.05)
     True
     """
     need_filtering = False

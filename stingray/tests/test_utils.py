@@ -369,3 +369,21 @@ def test_equal_count_energy_ranges():
     for e0, e1 in zip(edges[:-1], edges[1:]):
         good = energies[(energies >= e0) & (energies < e1)]
         assert np.count_nonzero(good) == 10000
+
+
+def test_histogram_equiv_numpy():
+    x = np.random.uniform(0., 1., 100)
+    y = np.random.uniform(2., 3., 100)
+    H, _, _ = np.histogram2d(x, y, bins=np.array((5, 5)),
+                             range=[(0., 1.), (2., 3.)])
+
+    Hn = utils.histogram2d(x, y, bins=np.array([5, 5]),
+                           range=np.array([[0., 1.], [2., 3.]]))
+    assert np.all(H == Hn)
+
+
+def test_compute_bin():
+    bin_edges = np.array([0, 5, 10])
+    assert utils.compute_bin(1, bin_edges) == 0
+    assert utils.compute_bin(5, bin_edges) == 1
+    assert utils.compute_bin(10, bin_edges) == 1
