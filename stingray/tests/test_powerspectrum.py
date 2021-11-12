@@ -1,15 +1,18 @@
+import os
 import numpy as np
 import copy
 import warnings
 
 from astropy.tests.helper import pytest
-
+from astropy.io import fits
 from stingray import Lightcurve
 from stingray.events import EventList
 from stingray import Powerspectrum, AveragedPowerspectrum, \
     DynamicalPowerspectrum
 
 np.random.seed(20150907)
+curdir = os.path.abspath(os.path.dirname(__file__))
+datadir = os.path.join(curdir, "data")
 
 
 class TestAveragedPowerspectrumEvents(object):
@@ -33,6 +36,16 @@ class TestAveragedPowerspectrumEvents(object):
         pds_ev = AveragedPowerspectrum.from_events(
             self.events, segment_size=self.segment_size, dt=self.dt, norm="abs")
         assert np.allclose(pds.power, pds_ev.power)
+
+    def test_from_time_array_works_with_memmap(self):
+        with fits.open(os.path.join(datadir, "monol_testA.evt"), memmap=True) as hdul:
+            times = hdul[1].data["TIME"]
+
+            gti = np.array([[hdul[2].data["START"][0], hdul[2].data["STOP"][0]]])
+
+            _ = AveragedPowerspectrum.from_time_array(
+                times,  segment_size=1, dt=self.dt, gti=gti, norm='none',
+                use_common_mean=False)
 
     @pytest.mark.parametrize("norm", ["frac", "abs", "none", "leahy"])
     def test_from_lc_works(self, norm):

@@ -1,9 +1,10 @@
-
+import os
 import numpy as np
 import pytest
 import warnings
 import matplotlib.pyplot as plt
 import scipy.special
+from astropy.io import fits
 from stingray import Lightcurve
 from stingray import Crossspectrum, AveragedCrossspectrum, coherence, time_lag
 from stingray.crossspectrum import  cospectra_pvalue, normalize_crossspectrum
@@ -14,6 +15,8 @@ from stingray.events import EventList
 import copy
 
 np.random.seed(20160528)
+curdir = os.path.abspath(os.path.dirname(__file__))
+datadir = os.path.join(curdir, "data")
 
 
 def avg_cdf_two_spectra(x):
@@ -151,6 +154,18 @@ class TestAveragedCrossspectrumEvents(object):
                                                  segment_size=1, dt=self.dt, norm='none',
                                                  use_common_mean=False)
         assert np.allclose(lccs.power.real, self.acs.power.real, rtol=0.01)
+
+    def test_from_time_array_works_with_memmap(self):
+        with fits.open(os.path.join(datadir, "monol_testA.evt"), memmap=True) as hdul:
+            times1 = hdul[1].data["TIME"]
+
+            gti = np.array([[hdul[2].data["START"][0], hdul[2].data["STOP"][0]]])
+
+            times2 = np.random.uniform(gti[0, 0], gti[0, 1], 1000)
+
+            _ = AveragedCrossspectrum.from_time_array(
+                times1, times2, segment_size=1, dt=self.dt, gti=gti, norm='none',
+                use_common_mean=False)
 
     @pytest.mark.parametrize("norm", ["frac", "abs", "none", "leahy"])
     def test_from_lc_works(self, norm):

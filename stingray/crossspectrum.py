@@ -1271,23 +1271,57 @@ class AveragedCrossspectrum(Crossspectrum):
         return
 
     @staticmethod
-    def from_events(events1, events2, dt, segment_size, norm='none',
-                    power_type="all", silent=False,
-                    fullspec=False, use_common_mean=True):
-        from .fourier import normalize_crossspectrum as norm_cross
+    def from_time_array(times1, times2, dt, segment_size, gti, norm='none',
+                        power_type="all", silent=False,
+                        fullspec=False, use_common_mean=True):
+        """Calculate AveragedCrossspectrum from two arrays of event times.
+
+        Parameters
+        ----------
+        times1 : `np.array`
+            Event arrival times of channel 1
+        times2 : `np.array`
+            Event arrival times of channel 2
+        dt : float
+            The time resolution of the intermediate light curves
+            (sets the Nyquist frequency)
+        segment_size : float
+            The length, in seconds, of the light curve segments that will be averaged
+        gti : [[gti0, gti1], ...]
+            Common Good Time intervals
+
+        Other parameters
+        ----------------
+        norm : str, default "abs"
+            The normalization of the periodogram. "abs" is absolute rms, "frac" is
+            fractional rms, "leahy" is Leahy+83 normalization, and "none" is the
+            unnormalized periodogram
+        use_common_mean : bool, default True
+            The mean of the light curve can be estimated in each interval, or on
+            the full light curve. This gives different results (Alston+2013).
+            Here we assume the mean is calculated on the full light curve, but
+            the user can set ``use_common_mean`` to False to calculate it on a
+            per-segment basis.
+        fullspec : bool, default False
+            Return the full periodogram, including negative frequencies
+        silent : bool, default False
+            Silence the progress bars
+        power_type : str, default 'all'
+            If 'all', give complex powers. If 'abs', the absolute value; if 'real',
+            the real part
+        """
         from .fourier import avg_cs_from_events, avg_pds_from_events
-        gti = cross_two_gtis(events1.gti, events2.gti)
 
         freq, power, N, M, mean = avg_cs_from_events(
-            events1.time, events2.time, gti, segment_size, dt,
+            times1, times2, gti, segment_size, dt,
             norm=norm, use_common_mean=use_common_mean,
             fullspec=fullspec, silent=silent, power_type=power_type)
         _, power1, _, _, mean1 = avg_pds_from_events(
-            events1.time, gti, segment_size, dt,
+            times1, gti, segment_size, dt,
             norm=norm, use_common_mean=use_common_mean,
             fullspec=fullspec, silent=silent, power_type=power_type)
         _, power2, _, _, mean2 = avg_pds_from_events(
-            events2.time, gti, segment_size, dt,
+            times2, gti, segment_size, dt,
             norm=norm, use_common_mean=use_common_mean,
             fullspec=fullspec, silent=silent, power_type=power_type)
 
@@ -1307,9 +1341,90 @@ class AveragedCrossspectrum(Crossspectrum):
         return cs
 
     @staticmethod
+    def from_events(events1, events2, dt, segment_size, norm='none',
+                    power_type="all", silent=False,
+                    fullspec=False, use_common_mean=True):
+        """Calculate AveragedCrossspectrum from two event lists
+
+        Parameters
+        ----------
+        events1 : `stingray.EventList`
+            Events from channel 1
+        events2 : `stingray.EventList`
+            Events from channel 2
+        dt : float
+            The time resolution of the intermediate light curves
+            (sets the Nyquist frequency)
+        segment_size : float
+            The length, in seconds, of the light curve segments that will be averaged
+
+        Other parameters
+        ----------------
+        norm : str, default "abs"
+            The normalization of the periodogram. "abs" is absolute rms, "frac" is
+            fractional rms, "leahy" is Leahy+83 normalization, and "none" is the
+            unnormalized periodogram
+        use_common_mean : bool, default True
+            The mean of the light curve can be estimated in each interval, or on
+            the full light curve. This gives different results (Alston+2013).
+            Here we assume the mean is calculated on the full light curve, but
+            the user can set ``use_common_mean`` to False to calculate it on a
+            per-segment basis.
+        fullspec : bool, default False
+            Return the full periodogram, including negative frequencies
+        silent : bool, default False
+            Silence the progress bars
+        power_type : str, default 'all'
+            If 'all', give complex powers. If 'abs', the absolute value; if 'real',
+            the real part
+        """
+
+        gti = cross_two_gtis(events1.gti, events2.gti)
+
+        return AveragedCrossspectrum.from_time_array(
+            events1.time, events2.time, dt, segment_size, gti, norm=norm,
+            power_type=power_type, silent=silent,
+            fullspec=fullspec, use_common_mean=use_common_mean
+        )
+
+    @staticmethod
     def from_lightcurve(lc1, lc2, segment_size, norm='none',
                         power_type="all", silent=False,
                         fullspec=False, use_common_mean=True):
+        """Calculate AveragedCrossspectrum from two light curves
+
+        Parameters
+        ----------
+        lc1 : `stingray.Lightcurve`
+            Light curve from channel 1
+        lc2 : `stingray.Lightcurve`
+            Light curve from channel 2
+        dt : float
+            The time resolution of the intermediate light curves
+            (sets the Nyquist frequency)
+        segment_size : float
+            The length, in seconds, of the light curve segments that will be averaged
+
+        Other parameters
+        ----------------
+        norm : str, default "abs"
+            The normalization of the periodogram. "abs" is absolute rms, "frac" is
+            fractional rms, "leahy" is Leahy+83 normalization, and "none" is the
+            unnormalized periodogram
+        use_common_mean : bool, default True
+            The mean of the light curve can be estimated in each interval, or on
+            the full light curve. This gives different results (Alston+2013).
+            Here we assume the mean is calculated on the full light curve, but
+            the user can set ``use_common_mean`` to False to calculate it on a
+            per-segment basis.
+        fullspec : bool, default False
+            Return the full periodogram, including negative frequencies
+        silent : bool, default False
+            Silence the progress bars
+        power_type : str, default 'all'
+            If 'all', give complex powers. If 'abs', the absolute value; if 'real',
+            the real part
+        """
         from .fourier import avg_cs_from_events, avg_pds_from_events
         gti = cross_two_gtis(lc1.gti, lc2.gti)
 

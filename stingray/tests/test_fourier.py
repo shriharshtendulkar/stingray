@@ -176,7 +176,7 @@ class TestNorms(object):
     def test_total_variance(self):
         """Test that the total variance of the unnormalized pds is the same as
         the variance from the light curve
-        Attention: VdK defines the variance as \sum (x - x0)**2.
+        Attention: VdK defines the variance as sum (x - x0)**2.
         The usual definition is divided by 'N'
         """
         vdk_total_variance = np.sum((self.lc - self.mean) ** 2)

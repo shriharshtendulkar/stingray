@@ -498,14 +498,47 @@ class AveragedPowerspectrum(AveragedCrossspectrum, Powerspectrum):
         return
 
     @staticmethod
-    def from_events(events, dt, segment_size, norm='none',
-                    power_type="real", silent=False,
-                    fullspec=False, use_common_mean=True):
-        from .fourier import normalize_crossspectrum as norm_cross
+    def from_time_array(times, dt, segment_size, gti, norm='none',
+                        power_type="real", silent=False,
+                        fullspec=False, use_common_mean=True):
+        """Calculate AveragedPowerspectrum from an array of event times.
+
+        Parameters
+        ----------
+        times : `np.array`
+            Event arrival times
+        dt : float
+            The time resolution of the intermediate light curves
+            (sets the Nyquist frequency)
+        segment_size : float
+            The length, in seconds, of the light curve segments that will be averaged
+        gti : [[gti0, gti1], ...]
+            Good Time intervals
+
+        Other parameters
+        ----------------
+        norm : str, default "abs"
+            The normalization of the periodogram. "abs" is absolute rms, "frac" is
+            fractional rms, "leahy" is Leahy+83 normalization, and "none" is the
+            unnormalized periodogram
+        use_common_mean : bool, default True
+            The mean of the light curve can be estimated in each interval, or on
+            the full light curve. This gives different results (Alston+2013).
+            Here we assume the mean is calculated on the full light curve, but
+            the user can set ``use_common_mean`` to False to calculate it on a
+            per-segment basis.
+        fullspec : bool, default False
+            Return the full periodogram, including negative frequencies
+        silent : bool, default False
+            Silence the progress bars
+        power_type : str, default 'all'
+            If 'all', give complex powers. If 'abs', the absolute value; if 'real',
+            the real part
+        """
         from .fourier import avg_pds_from_events
 
         freq, power, N, M, mean = avg_pds_from_events(
-            events.time, events.gti, segment_size, dt,
+            times, gti, segment_size, dt,
             norm=norm, use_common_mean=use_common_mean,
             fullspec=fullspec, silent=silent, power_type=power_type)
 
@@ -522,10 +555,84 @@ class AveragedPowerspectrum(AveragedCrossspectrum, Powerspectrum):
         return cs
 
     @staticmethod
+    def from_events(events, dt, segment_size, norm='none',
+                    power_type="real", silent=False,
+                    fullspec=False, use_common_mean=True):
+        """Calculate AveragedPowerspectrum from an event list
+
+        Parameters
+        ----------
+        events : `stingray.EventList`
+            Event list to be analyzed
+        dt : float
+            The time resolution of the intermediate light curves
+            (sets the Nyquist frequency)
+        segment_size : float
+            The length, in seconds, of the light curve segments that will be averaged
+
+        Other parameters
+        ----------------
+        norm : str, default "abs"
+            The normalization of the periodogram. "abs" is absolute rms, "frac" is
+            fractional rms, "leahy" is Leahy+83 normalization, and "none" is the
+            unnormalized periodogram
+        use_common_mean : bool, default True
+            The mean of the light curve can be estimated in each interval, or on
+            the full light curve. This gives different results (Alston+2013).
+            Here we assume the mean is calculated on the full light curve, but
+            the user can set ``use_common_mean`` to False to calculate it on a
+            per-segment basis.
+        fullspec : bool, default False
+            Return the full periodogram, including negative frequencies
+        silent : bool, default False
+            Silence the progress bars
+        power_type : str, default 'all'
+            If 'all', give complex powers. If 'abs', the absolute value; if 'real',
+            the real part
+        """
+
+        return AveragedPowerspectrum.from_time_array(
+            events.time, dt, segment_size, events.gti, norm=norm,
+            power_type=power_type, silent=silent,
+            fullspec=fullspec, use_common_mean=use_common_mean
+        )
+
+    @staticmethod
     def from_lightcurve(lc, segment_size, norm='none',
                         power_type="real", silent=False,
                         fullspec=False, use_common_mean=True):
-        from .fourier import normalize_crossspectrum as norm_cross
+        """Calculate AveragedPowerspectrum from a light curve
+
+        Parameters
+        ----------
+        events : `stingray.Lightcurve`
+            Light curve to be analyzed
+        dt : float
+            The time resolution of the intermediate light curves
+            (sets the Nyquist frequency)
+        segment_size : float
+            The length, in seconds, of the light curve segments that will be averaged
+
+        Other parameters
+        ----------------
+        norm : str, default "abs"
+            The normalization of the periodogram. "abs" is absolute rms, "frac" is
+            fractional rms, "leahy" is Leahy+83 normalization, and "none" is the
+            unnormalized periodogram
+        use_common_mean : bool, default True
+            The mean of the light curve can be estimated in each interval, or on
+            the full light curve. This gives different results (Alston+2013).
+            Here we assume the mean is calculated on the full light curve, but
+            the user can set ``use_common_mean`` to False to calculate it on a
+            per-segment basis.
+        fullspec : bool, default False
+            Return the full periodogram, including negative frequencies
+        silent : bool, default False
+            Silence the progress bars
+        power_type : str, default 'all'
+            If 'all', give complex powers. If 'abs', the absolute value; if 'real',
+            the real part
+        """
         from .fourier import avg_pds_from_events
 
         freq, power, N, M, mean = avg_pds_from_events(
