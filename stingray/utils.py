@@ -4,6 +4,7 @@ import random
 import string
 import sys
 import warnings
+import tempfile
 from collections.abc import Iterable
 
 import numpy as np
@@ -473,12 +474,7 @@ def is_string(s):  # pragma : no cover
     isstring : bool
         A boolean decision on whether ``s`` is a string or not
     """
-
-    PY2 = sys.version_info[0] == 2
-    if PY2:
-        return isinstance(s, basestring)  # NOQA
-    else:
-        return isinstance(s, str)  # NOQA
+    return isinstance(s, str)  # NOQA
 
 
 def is_iterable(var):

@@ -558,7 +558,6 @@ def avg_cs_from_events(
     norm="abs",
     use_common_mean=False,
     fullspec=False,
-    common_ref=False,
     silent=False,
     power_type="all",
     counts1=None,

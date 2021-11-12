@@ -246,12 +246,6 @@ class VarEnergySpectrum(object):
         self.spectrum = np.zeros(len(self.energy_intervals), dtype=dtype) + np.nan
         self.spectrum_error = np.zeros_like(self.spectrum, dtype=dtype) + np.nan
 
-    def _get_events_from_energy_range(self, events, erange):
-        energies = events.energy
-        mask = (energies >= erange[0]) & (energies < erange[1])
-
-        return events.apply_mask(mask)
-
     def _get_times_from_energy_range(self, events, erange):
         energies = events.energy
         mask = (energies >= erange[0]) & (energies < erange[1])
@@ -266,8 +260,6 @@ class VarEnergySpectrum(object):
         return good
 
     def _get_ctrate(self, events):
-        if isinstance(events, EventList):
-            events = events.time
         return get_total_ctrate(events, self.gti, self.segment_size)
 
     def _decide_ref_intervals(self, *args):
