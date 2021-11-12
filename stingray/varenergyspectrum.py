@@ -365,7 +365,7 @@ class VarEnergySpectrum(object):
 
     @abstractmethod
     def _spectrum_function(self):
-        raise NotImplementedError("This is a base class. It is not meant to be used by itself.")
+        pass
 
 
 class RmsSpectrum(VarEnergySpectrum):
