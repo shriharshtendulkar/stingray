@@ -63,6 +63,7 @@ def set_logprior(lpost, priors):
     --------
     Make a light curve and power spectrum
 
+    >>> from stingray import Lightcurve
     >>> photon_arrivals = np.sort(np.random.uniform(0,1000, size=10000))
     >>> lc = Lightcurve.make_lightcurve(photon_arrivals, dt=1.0)
     >>> ps = Powerspectrum(lc, norm="frac")
