@@ -89,8 +89,11 @@ class TestFourier(object):
         assert get_total_ctrate(self.bin_times, self.gti, self.segment_size, self.counts) == 1.0
 
     def test_fts_from_segments_invalid(self):
-        with pytest.raises(ValueError):
-            get_fts_from_segments(self.times, self.gti, self.segment_size, N=None, counts=None)
+        with pytest.raises(ValueError) as excinfo:
+            # N and counts are both None. This should make the function fail immediately
+            for _ in get_fts_from_segments(1, 2, 3, N=None, counts=None):
+                pass
+        assert 'At least one between counts' in str(excinfo.value)
 
     def test_fts_from_segments_cts_and_events_are_equal(self):
         N = 10

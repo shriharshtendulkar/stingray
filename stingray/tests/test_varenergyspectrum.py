@@ -53,6 +53,10 @@ class TestVarEnergySpectrum(object):
         )
         cls.vespeclog = DummyVarEnergy(cls.events, [0.0, 10000], (0.5, 5, 10, "log"), [0.3, 10])
 
+    def test_no_spectrum_func_raises(self):
+        with pytest.raises(ValueError):
+            ref_int = VarEnergySpectrum(self.events, [0.0, 10000], (0.5, 5, 10, "log"), [0.3, 10])
+
     def test_intervals_overlapping(self):
         ref_int = self.vespec._decide_ref_intervals([0.5, 6], [0.3, 10])
         np.testing.assert_allclose(ref_int, [[0.3, 0.5], [6, 10]])
