@@ -75,19 +75,10 @@ v
 
 # Mac OSX
 .DS_Store
-1636639028.png
-bu.jpg
-bubu.csv_initial_spec.png
-bubu.csv.csv
-bubufile.p
-cross.png
-out.npy
-phaseogram_direct.png
-phaseogram_fromfunc.png
-phaseogram_weights.png
-profile_direct.png
-profile_errorbars.png
-profile_existing_ax.png
-test_corner.pdf
-x.npy
-.hypothesis/unicode_data/12.1.0/charmap.json.gz
+*.png
+*.jpg
+*.p
+*.npy
+*.pdf
+*.csv
+.hypothesis
