@@ -2,15 +2,12 @@ import numpy as np
 import warnings
 from stingray.gti import check_separate, cross_two_gtis
 
-from stingray.events import EventList
 from stingray.lightcurve import Lightcurve
 from stingray.utils import assign_value_if_none, simon, excess_variance, show_progress
 
-from stingray.crossspectrum import AveragedCrossspectrum
 from stingray.fourier import avg_cs_from_events, avg_pds_from_events, fftfreq, get_total_ctrate
 from stingray.fourier import poisson_level, error_on_cross_spectrum, cross_to_covariance
 from abc import ABCMeta, abstractmethod
-import six
 
 
 __all__ = [
@@ -121,8 +118,7 @@ def _decode_energy_specification(energy_spec):
     return energies
 
 
-@six.add_metaclass(ABCMeta)
-class VarEnergySpectrum(object):
+class VarEnergySpectrum(metaclass=ABCMeta):
     """
     Base class for variability-energy spectrum.
 
