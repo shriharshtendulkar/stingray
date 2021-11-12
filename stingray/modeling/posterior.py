@@ -1,5 +1,3 @@
-
-
 import abc
 import warnings
 
@@ -7,12 +5,8 @@ import numpy as np
 
 np.seterr('warn')
 
-from scipy.special import gamma as scipy_gamma
 from scipy.special import gammaln as scipy_gammaln
 from astropy.modeling.fitting import _fitter_to_model_params
-from astropy.modeling import models
-
-from stingray import Lightcurve, Powerspectrum
 
 
 # TODO: Add checks and balances to code
@@ -150,7 +144,7 @@ def set_logprior(lpost, priors):
     return logprior
 
 
-class LogLikelihood(metaclass=ABCMeta):
+class LogLikelihood(metaclass=abc.ABCMeta):
     """
 
     Abstract Base Class defining the structure of a :class:`LogLikelihood` object.
