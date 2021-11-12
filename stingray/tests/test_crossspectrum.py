@@ -164,7 +164,7 @@ class TestAveragedCrossspectrumEvents(object):
             times2 = np.random.uniform(gti[0, 0], gti[0, 1], 1000)
 
             _ = AveragedCrossspectrum.from_time_array(
-                times1, times2, segment_size=1, dt=self.dt, gti=gti, norm='none',
+                times1, times2, segment_size=128, dt=self.dt, gti=gti, norm='none',
                 use_common_mean=False)
 
     @pytest.mark.parametrize("norm", ["frac", "abs", "none", "leahy"])

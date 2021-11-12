@@ -44,7 +44,7 @@ class TestAveragedPowerspectrumEvents(object):
             gti = np.array([[hdul[2].data["START"][0], hdul[2].data["STOP"][0]]])
 
             _ = AveragedPowerspectrum.from_time_array(
-                times,  segment_size=1, dt=self.dt, gti=gti, norm='none',
+                times,  segment_size=128, dt=self.dt, gti=gti, norm='none',
                 use_common_mean=False)
 
     @pytest.mark.parametrize("norm", ["frac", "abs", "none", "leahy"])
