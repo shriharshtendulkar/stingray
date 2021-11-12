@@ -528,12 +528,14 @@ def avg_pds_from_events(
         if not fullspec:
             unnorm_power = unnorm_power[fgt0]
 
-        if not use_common_mean:
+        if use_common_mean:
+            cs_seg = unnorm_power
+        else:
             mean = nph / N
 
-        cs_seg = normalize_crossspectrum(
-            unnorm_power, dt, N, mean, norm=norm, power_type=power_type
-        )
+            cs_seg = normalize_crossspectrum(
+                unnorm_power, dt, N, mean, norm=norm, power_type=power_type
+            )
 
         if cross is None:
             cross = cs_seg
@@ -543,7 +545,13 @@ def avg_pds_from_events(
 
     if cross is None:
         return None, None, None, None, None
+
     cross /= M
+    if use_common_mean:
+        cross = normalize_crossspectrum(
+                unnorm_power, dt, N, mean, norm=norm, power_type=power_type
+            )
+
     if not fullspec:
         freq = freq[fgt0]
     return freq, cross, N, M, mean
@@ -556,7 +564,7 @@ def avg_cs_from_events(
     segment_size,
     dt,
     norm="abs",
-    use_common_mean=False,
+    use_common_mean=True,
     fullspec=False,
     silent=False,
     power_type="all",
@@ -653,15 +661,15 @@ def avg_cs_from_events(
         if not fullspec:
             unnorm_power = unnorm_power[fgt0]
 
-        if not use_common_mean:
+        if use_common_mean:
+            cs_seg = unnorm_power
+        else:
             nph = np.sqrt(nph1 * nph2)
             mean = nph / N
 
             cs_seg = normalize_crossspectrum(
                 unnorm_power, dt, N, mean, norm=norm, power_type=power_type
             )
-        else:
-            cs_seg = unnorm_power
 
         if cross is None:
             cross = cs_seg
