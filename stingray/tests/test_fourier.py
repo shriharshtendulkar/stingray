@@ -88,6 +88,10 @@ class TestFourier(object):
     def test_ctrate_counts(self):
         assert get_total_ctrate(self.bin_times, self.gti, self.segment_size, self.counts) == 1.0
 
+    def test_fts_from_segments_invalid(self):
+        with pytest.raises(ValueError):
+            get_fts_from_segments(self.times, self.gti, self.segment_size, N=None, counts=None)
+
     def test_fts_from_segments_cts_and_events_are_equal(self):
         N = 10
         fts_evts = [
@@ -102,6 +106,19 @@ class TestFourier(object):
         for (fe, ne), (fc, nc) in zip(fts_evts, fts_cts):
             assert np.allclose(fe, fc)
             assert ne == nc
+
+    def test_avg_pds_bad_input(self):
+        times = np.sort(np.random.uniform(0, 1000, 1))
+        out_ev = avg_pds_from_events(times, self.gti, self.segment_size, self.dt)
+        for oe in out_ev:
+            assert oe is None
+
+    def test_avg_cs_bad_input(self):
+        times1 = np.sort(np.random.uniform(0, 1000, 1))
+        times2 = np.sort(np.random.uniform(0, 1000, 1))
+        out_ev = avg_cs_from_events(times1, times2, self.gti, self.segment_size, self.dt)
+        for oe in out_ev:
+            assert oe is None
 
     @pytest.mark.parametrize("use_common_mean", [True, False])
     @pytest.mark.parametrize("norm", ["frac", "abs", "none", "leahy"])
