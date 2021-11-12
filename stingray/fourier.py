@@ -13,6 +13,28 @@ except ImportError:
     from scipy.fft import fft, fftfreq
 
 
+def positive_fft_bins(N):
+    """See https://numpy.org/doc/stable/reference/routines.fft.html#implementation-details
+
+    Examples
+    --------
+    >>> freq = np.fft.fftfreq(10)
+    >>> good = freq > 0
+    >>> goodbins = positive_fft_bins(10)
+    >>> np.allclose(freq[good], freq[goodbins])
+    True
+    >>> freq = np.fft.fftfreq(11)
+    >>> good = freq > 0
+    >>> goodbins = positive_fft_bins(11)
+    >>> np.allclose(freq[good], freq[goodbins])
+    True
+    """
+    if N % 2 == 0:
+        return slice(1, N // 2)
+    else:
+        return slice(1, (N + 1) // 2)
+
+
 def poisson_level(meanrate=0, norm="abs"):
     """Poisson (white)-noise level in a periodogram of pure counting noise.
 
@@ -504,7 +526,7 @@ def avg_pds_from_events(
     dt = segment_size / N
 
     freq = fftfreq(N, dt)
-    fgt0 = freq > 0
+    fgt0 = positive_fft_bins(N)
 
     cross = None
     M = 0
@@ -631,7 +653,7 @@ def avg_cs_from_events(
     dt = segment_size / N
 
     freq = fftfreq(N, dt)
-    fgt0 = freq > 0
+    fgt0 = positive_fft_bins(N)
     # gti = cross_two_gtis(events1.gti, events2.gti)
     # events1.gti = events2.gti = gti
 
