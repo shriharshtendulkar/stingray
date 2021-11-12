@@ -13,7 +13,7 @@ except ImportError:
     from scipy.fft import fft, fftfreq
 
 
-def positive_fft_bins(N):
+def positive_fft_bins(N, include_zero=False):
     """See https://numpy.org/doc/stable/reference/routines.fft.html#implementation-details
 
     Examples
@@ -28,11 +28,25 @@ def positive_fft_bins(N):
     >>> goodbins = positive_fft_bins(11)
     >>> np.allclose(freq[good], freq[goodbins])
     True
+    >>> freq = np.fft.fftfreq(10)
+    >>> good = freq >= 0
+    >>> goodbins = positive_fft_bins(10, include_zero=True)
+    >>> np.allclose(freq[good], freq[goodbins])
+    True
+    >>> freq = np.fft.fftfreq(11)
+    >>> good = freq >= 0
+    >>> goodbins = positive_fft_bins(11, include_zero=True)
+    >>> np.allclose(freq[good], freq[goodbins])
+    True
     """
+    minbin = 1
+    if include_zero:
+        minbin = 0
+
     if N % 2 == 0:
-        return slice(1, N // 2)
+        return slice(minbin, N // 2)
     else:
-        return slice(1, (N + 1) // 2)
+        return slice(minbin, (N + 1) // 2)
 
 
 def poisson_level(meanrate=0, norm="abs"):
