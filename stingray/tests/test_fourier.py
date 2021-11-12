@@ -1,5 +1,9 @@
+import os
 import pytest
 from stingray.fourier import *
+
+curdir = os.path.abspath(os.path.dirname(__file__))
+datadir = os.path.join(curdir, "data")
 
 
 def test_norm():
@@ -19,6 +23,51 @@ def test_norm():
 
     assert np.isclose(pdsabs[good].mean(), pois_abs, rtol=0.01)
     assert np.isclose(pdsfrac[good].mean(), pois_frac, rtol=0.01)
+
+
+class TestCoherence(object):
+    @classmethod
+    def setup_class(cls):
+        data = np.load(os.path.join(datadir, "sample_variable_lc.npy"))[:10000] * 1000
+        cls.data1 = np.random.poisson(data)
+        cls.data2 = np.random.poisson(data)
+        ft1 = np.fft.fft(cls.data1)
+        ft2 = np.fft.fft(cls.data2)
+        dt = 0.01
+        cls.N = data.size
+        mean = np.mean(data)
+        meanrate = mean / dt
+        freq = np.fft.fftfreq(data.size, dt)
+        good = (freq > 0) & (freq < 0.1)
+        ft1, ft2 = ft1[good], ft2[good]
+        cls.cross = normalize_crossspectrum(
+            ft1 * ft2.conj(), dt, cls.N, mean, norm="abs", power_type="all")
+        cls.pds1 = normalize_crossspectrum(
+            ft1 * ft1.conj(), dt, cls.N, mean, norm="abs", power_type="real")
+        cls.pds2 = normalize_crossspectrum(
+            ft2 * ft2.conj(), dt, cls.N, mean, norm="abs", power_type="real")
+
+        cls.p1noise = poisson_level(meanrate=meanrate, norm="abs")
+        cls.p2noise = poisson_level(meanrate=meanrate, norm="abs")
+
+    def test_intrinsic_coherence(self):
+        coh = estimate_intrinsic_coherence(self.cross, self.pds1, self.pds2, self.p1noise, self.p2noise, self.N)
+        assert np.allclose(coh, 1, atol=0.001)
+
+    def test_raw_high_coherence(self):
+        coh = raw_coherence(self.cross, self.pds1, self.pds2, self.p1noise, self.p2noise, self.N)
+        assert np.allclose(coh, 1, atol=0.001)
+
+    def test_raw_low_coherence(self):
+        nbins = 2
+        C, P1, P2 = self.cross[:nbins], self.pds1[:nbins], self.pds2[:nbins]
+        bsq = bias_term(C, P1, P2, self.p1noise, self.p2noise, self.N)
+        # must be lower than bsq!
+        low_coh_cross = np.random.normal(bsq**0.5 / 10, bsq**0.5 / 100) + 0.j
+        coh = raw_coherence(low_coh_cross, P1, P2, self.p1noise, self.p2noise, self.N)
+        assert np.allclose(coh, 0)
+        # Do it with a single number as well
+        coh = raw_coherence(low_coh_cross[0], P1[0], P2[0], self.p1noise, self.p2noise, self.N)
 
 
 class TestFourier(object):

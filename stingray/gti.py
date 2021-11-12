@@ -1128,7 +1128,7 @@ def bin_intervals_from_gtis(gtis, chunk_length, time, dt=None, fraction_step=1,
     --------
     >>> time = np.arange(0.5, 13.5)
 
-    >>> gtis = [[0, 5], [6, 8]]
+    >>> gtis = [[0, 5], [6, 8], [9, 10]]
 
     >>> chunk_length = 2
 
