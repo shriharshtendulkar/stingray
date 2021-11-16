@@ -14,7 +14,6 @@ np.random.seed(20150907)
 curdir = os.path.abspath(os.path.dirname(__file__))
 datadir = os.path.join(curdir, "data")
 
-
 class DummyVarEnergy(VarEnergySpectrum):
     def _spectrum_function(self):
         return None, None
