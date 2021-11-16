@@ -1312,18 +1312,11 @@ class AveragedCrossspectrum(Crossspectrum):
             the real part
         """
 
-        freq, power, N, M, mean = avg_cs_from_events(
+        freq, power, N, M, _, power1, mean1, power2, mean2 = avg_cs_from_events(
             times1, times2, gti, segment_size, dt,
             norm=norm, use_common_mean=use_common_mean,
-            fullspec=fullspec, silent=silent, power_type=power_type)
-        _, power1, _, _, mean1 = avg_pds_from_events(
-            times1, gti, segment_size, dt,
-            norm=norm, use_common_mean=use_common_mean,
-            silent=silent)
-        _, power2, _, _, mean2 = avg_pds_from_events(
-            times2, gti, segment_size, dt,
-            norm=norm, use_common_mean=use_common_mean,
-            silent=silent)
+            fullspec=fullspec, silent=silent, power_type=power_type,
+            return_auxil=True)
 
         cs = AveragedCrossspectrum()
         cs.freq = freq
@@ -1384,7 +1377,7 @@ class AveragedCrossspectrum(Crossspectrum):
         return AveragedCrossspectrum.from_time_array(
             events1.time, events2.time, dt, segment_size, gti, norm=norm,
             power_type=power_type, silent=silent,
-            fullspec=fullspec, use_common_mean=use_common_mean
+            fullspec=fullspec, use_common_mean=use_common_mean,
         )
 
     @staticmethod
@@ -1427,22 +1420,12 @@ class AveragedCrossspectrum(Crossspectrum):
         err1 = lc1._counts_err
         err2 = lc2._counts_err
 
-        freq, power, N, M, mean = avg_cs_from_events(
+        freq, power, N, M, _, power1, mean1, power2, mean2 = avg_cs_from_events(
             lc1.time, lc2.time, gti, segment_size, lc1.dt,
             norm=norm, use_common_mean=use_common_mean,
             fullspec=fullspec, silent=silent, power_type=power_type,
-            counts1=lc1.counts, counts2=lc2.counts, errors1=err1, errors2=err2)
-
-        _, power1, _, _, mean1 = avg_pds_from_events(
-            lc1.time, gti, segment_size, lc1.dt,
-            norm=norm, use_common_mean=use_common_mean,
-            silent=silent, errors=err1,
-            counts=lc1.counts)
-        _, power2, _, _, mean2 = avg_pds_from_events(
-            lc2.time, gti, segment_size, lc1.dt,
-            norm=norm, use_common_mean=use_common_mean,
-            silent=silent,
-            counts=lc2.counts, errors=err2)
+            counts1=lc1.counts, counts2=lc2.counts, errors1=err1, errors2=err2,
+            return_auxil=True)
 
         cs = AveragedCrossspectrum()
         cs.freq = freq
@@ -1511,7 +1494,7 @@ class AveragedCrossspectrum(Crossspectrum):
         iter_lc1 = list(iter_lc1)
         iter_lc2 = list(iter_lc2)
 
-        freq, power, N, M, _ = avg_cs_from_iterables(
+        freq, power, N, M, _, power1, mean1, power2, mean2 = avg_cs_from_iterables(
             iterate_lc_counts(iter_lc1),
             iterate_lc_counts(iter_lc2),
             dt,
@@ -1519,23 +1502,8 @@ class AveragedCrossspectrum(Crossspectrum):
             use_common_mean=use_common_mean,
             silent=silent,
             fullspec=fullspec,
-            power_type=power_type
-        )
-
-        _, power1, _, _, mean1 = avg_pds_from_iterable(
-            iterate_lc_counts(iter_lc1),
-            dt,
-            norm=norm,
-            use_common_mean=use_common_mean,
-            silent=silent
-        )
-
-        freq, power2, _, _, mean2 = avg_pds_from_iterable(
-            iterate_lc_counts(iter_lc2),
-            dt,
-            norm=norm,
-            use_common_mean=use_common_mean,
-            silent=silent
+            power_type=power_type,
+            return_auxil=True
         )
 
         cs = AveragedCrossspectrum()
