@@ -174,6 +174,35 @@ class TestRmsAndCovSpectrum(object):
             assert np.allclose(pds, 0.20, atol=3 * err)
 
     @pytest.mark.parametrize("norm", ["frac", "abs"])
+    def test_correct_cov_values_vs_cross(self, norm):
+        """The rms calculated with independent event lists (from the cospectrum)
+        is equivalent to the one calculated with one event list (from the PDS)"""
+        covar = CovarianceSpectrum(
+            self.test_ev1,
+            freq_interval=[0.00001, 0.1],
+            energy_spec=(0.3, 12, 2, "lin"),
+            bin_time=self.bin_time / 2,
+            segment_size=100,
+            norm=norm
+        )
+
+        covar_cross = CovarianceSpectrum(
+            self.test_ev1,
+            freq_interval=[0.00001, 0.1],
+            energy_spec=(0.3, 12, 2, "lin"),
+            bin_time=self.bin_time / 2,
+            segment_size=100,
+            norm=norm,
+            events2=self.test_ev2
+        )
+
+        cov = covar.spectrum
+        rms = covar_cross.spectrum
+        coverr = covar_cross.spectrum_error
+
+        assert np.allclose(cov, rms, atol=3 * coverr)
+
+    @pytest.mark.parametrize("norm", ["frac", "abs"])
     def test_correct_rms_values_vs_cov(self, norm):
         """The rms calculated with independent event lists (from the cospectrum)
         is equivalent to the one calculated with one event list (from the PDS)"""
@@ -261,8 +290,23 @@ class TestLagEnergySpectrum(object):
             events2=test_ev2,
         )
 
+        # Make single event list
+        test_ev = test_ev1.join(test_ev2)
+
+        cls.lag_same = LagEnergySpectrum(
+            test_ev,
+            [0.0, maxfreq],
+            (0.3, 9, 1, "lin"),
+            [9, 12],
+            bin_time=dt / 2,
+            segment_size=199,
+        )
+
     def test_lagspectrum_values_and_errors(self):
         assert np.all(np.abs(self.lag.spectrum - self.time_lag) < 3 * self.lag.spectrum_error)
+
+    def test_lagspectrum_values_and_errors_same(self):
+        assert np.all(np.abs(self.lag_same.spectrum - self.time_lag) < 3 * self.lag.spectrum_error)
 
     def test_lagspectrum_invalid_warns(self):
         ev = EventList(time=[], energy=[], gti=self.lag.events1.gti)
