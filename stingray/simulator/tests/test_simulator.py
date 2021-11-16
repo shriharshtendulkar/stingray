@@ -22,7 +22,7 @@ class TestSimulator(object):
         self.N = 1024
         self.mean = 0.5
         self.dt = 0.125
-        self.rms = .4
+        self.rms = 1.0
         self.simulator = Simulator(N=self.N, mean=self.mean, dt=self.dt, rms=self.rms)
         self.simulator_odd = Simulator(N=2039, mean=self.mean, dt=self.dt, rms=self.rms)
 
@@ -56,7 +56,6 @@ class TestSimulator(object):
         """
         tstart = 10.0
         self.simulator = Simulator(N=self.N, mean=self.mean, dt=self.dt, rms=self.rms,
-
                                    tstart=tstart)
         assert self.simulator.time[0] == tstart
 
@@ -148,6 +147,7 @@ class TestSimulator(object):
     def test_init_failure_with_noninteger_N(self):
         with pytest.raises(ValueError):
             simulator = Simulator(N=1024.5, mean=self.mean, rms=self.rms,
+                                  dt=self.dt)
 
     def test_init_fails_if_arguments_missing(self):
         with pytest.raises(TypeError):
@@ -155,7 +155,7 @@ class TestSimulator(object):
 
     def test_rms_and_mean(self):
         nsim = 1000
-        lc_all = [self.simulator.simulate(1.0) for i in range(nsim)]
+        lc_all = [self.simulator.simulate(-2.0) for i in range(nsim)]
 
         mean_all = np.mean([np.mean(lc.counts) for lc in lc_all])
         std_all = np.mean([np.std(lc.counts) for lc in lc_all])
