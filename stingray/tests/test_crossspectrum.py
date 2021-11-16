@@ -145,14 +145,13 @@ class TestAveragedCrossspectrumEvents(object):
         self.cs = Crossspectrum(self.events1, self.events2, dt=self.dt)
 
         self.acs = AveragedCrossspectrum(self.events1.to_lc(self.dt),
-                                         self.events2.to_lc(self.dt),
+                                         self.events2.to_lc(self.dt), silent=True,
                                          segment_size=segment_size, dt=self.dt, norm='none')
         self.lc1, self.lc2 = self.events1, self.events2
 
     def test_from_events_works(self):
         lccs = AveragedCrossspectrum.from_events(self.events1, self.events2,
-                                                 segment_size=1, dt=self.dt, norm='none',
-                                                 use_common_mean=False)
+                                                 segment_size=1, dt=self.dt, norm='none', silent=True)
         power1 = lccs.power.real
         power2 = self.acs.power.real
         assert np.allclose(power1, power2, rtol=0.01)

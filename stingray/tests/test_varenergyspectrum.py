@@ -128,8 +128,7 @@ class TestRmsAndCovSpectrum(object):
         from ..simulator import Simulator
 
         cls.bin_time = 0.01
-        # simulator = Simulator(cls.bin_time, 1000, rms=cls.rms, mean=200)
-        # test_lc = simulator.simulate(1.5)
+
         data = np.load(os.path.join(datadir, "sample_variable_lc.npy"))
         flux = data / 100
         times = np.arange(data.size) * cls.bin_time
@@ -152,7 +151,7 @@ class TestRmsAndCovSpectrum(object):
             freq_interval=[0.00001, 0.1],
             energy_spec=(0.3, 12, 2, "lin"),
             bin_time=self.bin_time / 2,
-            segment_size=5000,
+            segment_size=9999,
             events2=self.test_ev2,
             norm=norm,
         )
@@ -161,7 +160,7 @@ class TestRmsAndCovSpectrum(object):
             freq_interval=[0.00001, 0.1],
             energy_spec=(0.3, 12, 2, "lin"),
             bin_time=self.bin_time / 2,
-            segment_size=5000,
+            segment_size=9999,
             norm=norm,
         )
         pds = rmsspec_pds.spectrum
@@ -233,7 +232,7 @@ class TestLagEnergySpectrum(object):
         dt = 0.01
         cls.time_lag = 5
         data = np.load(os.path.join(datadir, "sample_variable_lc.npy"))
-        flux = data / 100
+        flux = data / 10
         times = np.arange(data.size) * dt
         maxfreq = 0.25 / cls.time_lag
         roll_amount = int(cls.time_lag // dt)

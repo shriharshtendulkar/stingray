@@ -32,9 +32,9 @@ class TestAveragedPowerspectrumEvents(object):
 
     def test_from_events_works(self):
         pds = AveragedPowerspectrum(
-            self.lc, segment_size=self.segment_size, dt=self.dt, norm="abs")
+            self.lc, segment_size=self.segment_size, dt=self.dt, norm="leahy", silent=True)
         pds_ev = AveragedPowerspectrum.from_events(
-            self.events, segment_size=self.segment_size, dt=self.dt, norm="abs")
+            self.events, segment_size=self.segment_size, dt=self.dt, norm="leahy", silent=True)
         assert np.allclose(pds.power, pds_ev.power)
 
     def test_from_time_array_works_with_memmap(self):
@@ -50,9 +50,9 @@ class TestAveragedPowerspectrumEvents(object):
     @pytest.mark.parametrize("norm", ["frac", "abs", "none", "leahy"])
     def test_from_lc_works(self, norm):
         pds = AveragedPowerspectrum.from_lightcurve(
-            self.events.to_lc(self.dt), segment_size=self.segment_size, norm=norm)
+            self.events.to_lc(self.dt), segment_size=self.segment_size, norm=norm, silent=True)
         pds_ev = AveragedPowerspectrum.from_events(
-            self.events, segment_size=self.segment_size, dt=self.dt, norm=norm)
+            self.events, segment_size=self.segment_size, dt=self.dt, norm=norm, silent=True)
         for attr in ["power", "freq", "m", "n", "nphots", "segment_size"]:
             assert np.allclose(getattr(pds, attr), getattr(pds_ev, attr))
 
