@@ -892,8 +892,9 @@ class Lightcurve(object):
             tseg = toa[-1] - tstart
 
         logging.info("make_lightcurve: tseg: " + str(tseg))
-
-        timebin = np.int64(tseg / dt)
+        # If the new bin is just 1% away, round to next bin
+        epsilon = 0.01
+        timebin = np.int(tseg / dt + epsilon)
         logging.info("make_lightcurve: timebin:  " + str(timebin))
 
         tend = tstart + timebin * dt

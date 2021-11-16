@@ -37,6 +37,14 @@ class TestAveragedPowerspectrumEvents(object):
             self.events, segment_size=self.segment_size, dt=self.dt, norm="leahy", silent=True)
         assert np.allclose(pds.power, pds_ev.power)
 
+    def test_from_lc_iter_works(self):
+        pds = AveragedPowerspectrum(
+            self.lc, segment_size=self.segment_size, dt=self.dt, norm="leahy", silent=True)
+        pds_ev = AveragedPowerspectrum.from_lc_iterable(
+            self.events.to_lc_iter(self.dt, self.segment_size),
+            segment_size=self.segment_size, dt=self.dt, norm="leahy", silent=True)
+        assert np.allclose(pds.power, pds_ev.power)
+
     def test_from_time_array_works_with_memmap(self):
         with fits.open(os.path.join(datadir, "monol_testA.evt"), memmap=True) as hdul:
             times = hdul[1].data["TIME"]

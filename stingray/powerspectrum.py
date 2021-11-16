@@ -16,6 +16,9 @@ from stingray.utils import genDataPath
 from .events import EventList
 from .gti import cross_two_gtis
 from .lightcurve import Lightcurve
+from .fourier import avg_pds_from_iterable
+from .fourier import avg_pds_from_events
+from .fourier import fftfreq, fft
 
 try:
     from tqdm import tqdm as show_progress
@@ -535,7 +538,6 @@ class AveragedPowerspectrum(AveragedCrossspectrum, Powerspectrum):
             If 'all', give complex powers. If 'abs', the absolute value; if 'real',
             the real part
         """
-        from .fourier import avg_pds_from_events
 
         freq, power, N, M, mean = avg_pds_from_events(
             times, gti, segment_size, dt,
@@ -633,7 +635,6 @@ class AveragedPowerspectrum(AveragedCrossspectrum, Powerspectrum):
             If 'all', give complex powers. If 'abs', the absolute value; if 'real',
             the real part
         """
-        from .fourier import avg_pds_from_events
 
         freq, power, N, M, mean = avg_pds_from_events(
             lc.time, lc.gti, segment_size, lc.dt,
@@ -651,6 +652,74 @@ class AveragedPowerspectrum(AveragedCrossspectrum, Powerspectrum):
         cs.fullspec = fullspec
         cs.segment_size = segment_size
         return cs
+
+    @staticmethod
+    def from_lc_iterable(iter_lc, dt, segment_size, norm='none',
+                         silent=False, use_common_mean=True):
+        """Calculate AveragedCrossspectrum from two light curves
+
+        Parameters
+        ----------
+        iter_lc1 : iterable of `stingray.Lightcurve` objects or `np.array`
+            Light curves from channel 1. If arrays, use them as counts
+        iter_lc1 : iterable of `stingray.Lightcurve` objects or `np.array`
+            Light curves from channel 2. If arrays, use them as counts
+        dt : float
+            The time resolution of the light curves
+            (sets the Nyquist frequency)
+        segment_size : float
+            The length, in seconds, of the light curve segments that will be averaged
+
+        Other parameters
+        ----------------
+        norm : str, default "abs"
+            The normalization of the periodogram. "abs" is absolute rms, "frac" is
+            fractional rms, "leahy" is Leahy+83 normalization, and "none" is the
+            unnormalized periodogram
+        use_common_mean : bool, default True
+            The mean of the light curve can be estimated in each interval, or on
+            the full light curve. This gives different results (Alston+2013).
+            Here we assume the mean is calculated on the full light curve, but
+            the user can set ``use_common_mean`` to False to calculate it on a
+            per-segment basis.
+        fullspec : bool, default False
+            Return the full periodogram, including negative frequencies
+        silent : bool, default False
+            Silence the progress bars
+        power_type : str, default 'all'
+            If 'all', give complex powers. If 'abs', the absolute value; if 'real',
+            the real part
+        """
+
+        def iterate_lc_counts(iter_lc):
+            for lc in iter_lc:
+                if hasattr(lc, "counts"):
+                    out = lc.counts
+                    if lc._counts_err is not None:
+                        out = (out, lc._counts_err)
+                    yield out
+                else:
+                    yield lc
+
+        freq, power, N, M, mean = avg_pds_from_iterable(
+            iterate_lc_counts(iter_lc),
+            dt,
+            norm=norm,
+            use_common_mean=use_common_mean,
+            silent=silent
+        )
+
+        cs = AveragedPowerspectrum()
+        cs.freq = freq
+        cs.power = power
+        cs.m = M
+        cs.n = N
+        cs.df = 1 / segment_size
+        cs.nphots = mean * N
+        cs.segment_size = segment_size
+
+        return cs
+
 
     def _make_segment_spectrum(self, lc, segment_size, silent=False):
         """
