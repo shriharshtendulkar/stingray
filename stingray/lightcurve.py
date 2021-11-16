@@ -246,7 +246,6 @@ class Lightcurve(object):
                   "Sorry for the inconvenience.")
 
         if err is not None:
-            err = np.asarray(err)
             if not skip_checks and not np.all(np.isfinite(err)):
                 raise ValueError("There are inf or NaN values in "
                                  "your err array")

@@ -540,7 +540,7 @@ class AveragedPowerspectrum(AveragedCrossspectrum, Powerspectrum):
         freq, power, N, M, mean = avg_pds_from_events(
             times, gti, segment_size, dt,
             norm=norm, use_common_mean=use_common_mean,
-            fullspec=fullspec, silent=silent, power_type=power_type)
+            silent=silent)
 
         cs = AveragedPowerspectrum()
         cs.freq = freq
@@ -638,7 +638,7 @@ class AveragedPowerspectrum(AveragedCrossspectrum, Powerspectrum):
         freq, power, N, M, mean = avg_pds_from_events(
             lc.time, lc.gti, segment_size, lc.dt,
             norm=norm, use_common_mean=use_common_mean,
-            fullspec=fullspec, silent=silent, power_type=power_type,
+            silent=silent,
             counts=lc.counts)
 
         cs = AveragedPowerspectrum()

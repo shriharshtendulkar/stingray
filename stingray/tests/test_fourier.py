@@ -91,24 +91,23 @@ class TestFourier(object):
     def test_fts_from_segments_invalid(self):
         with pytest.raises(ValueError) as excinfo:
             # N and counts are both None. This should make the function fail immediately
-            for _ in get_fts_from_segments(1, 2, 3, N=None, counts=None):
+            for _ in get_flux_iterable_from_segments(1, 2, 3, N=None, counts=None):
                 pass
         assert 'At least one between counts' in str(excinfo.value)
 
     def test_fts_from_segments_cts_and_events_are_equal(self):
         N = 10
         fts_evts = [
-            (f, n) for (f, n) in get_fts_from_segments(self.times, self.gti, self.segment_size, N=N)
+            f for f in get_flux_iterable_from_segments(self.times, self.gti, self.segment_size, N=N)
         ]
         fts_cts = [
-            (f, n)
-            for (f, n) in get_fts_from_segments(
+            f
+            for f in get_flux_iterable_from_segments(
                 self.bin_times, self.gti, self.segment_size, counts=self.counts
             )
         ]
-        for (fe, ne), (fc, nc) in zip(fts_evts, fts_cts):
+        for fe, fc in zip(fts_evts, fts_cts):
             assert np.allclose(fe, fc)
-            assert ne == nc
 
     def test_avg_pds_bad_input(self):
         times = np.sort(np.random.uniform(0, 1000, 1))
@@ -133,9 +132,7 @@ class TestFourier(object):
             self.dt,
             norm=norm,
             use_common_mean=use_common_mean,
-            fullspec=False,
-            silent=False,
-            power_type="all",
+            silent=True,
             counts=None,
         )
         out_ct = avg_pds_from_events(
@@ -145,9 +142,7 @@ class TestFourier(object):
             self.dt,
             norm=norm,
             use_common_mean=use_common_mean,
-            fullspec=False,
-            silent=False,
-            power_type="all",
+            silent=True,
             counts=self.counts,
         )
         for oe, oc in zip(out_ev, out_ct):
@@ -167,9 +162,7 @@ class TestFourier(object):
             self.dt,
             norm=norm,
             use_common_mean=use_common_mean,
-            fullspec=False,
             silent=False,
-            power_type="all",
         )
         out_ct = avg_cs_from_events(
             self.bin_times,
@@ -179,9 +172,7 @@ class TestFourier(object):
             self.dt,
             norm=norm,
             use_common_mean=use_common_mean,
-            fullspec=False,
             silent=False,
-            power_type="all",
             counts1=self.counts,
             counts2=self.counts2,
         )

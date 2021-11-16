@@ -7,6 +7,7 @@ from .utils import histogram, show_progress
 try:
     import pyfftw
     from pyfftw.interfaces.numpy_fft import fft, fftfreq
+
     pyfftw.interfaces.cache.enable()
 except ImportError:
     warnings.warn("pyfftw not installed. Using standard scipy fft")
@@ -285,7 +286,7 @@ def estimate_intrinsic_coherence(C, P1, P2, P1noise, P2noise, N):
     return new_coherence
 
 
-def error_on_cross_spectrum(C, Ps, Pr, N, Psnoise, Prnoise, common_ref="False"):
+def error_on_averaged_cross_spectrum(C, Ps, Pr, N, Psnoise, Prnoise, common_ref="False"):
     """Error on cross spectral quantities, From Ingram 2019.
 
     Parameters
@@ -414,8 +415,8 @@ def get_total_ctrate(times, gti, segment_size, counts=None):
     return Nph / (Nintvs * segment_size)
 
 
-def get_fts_from_segments(times, gti, segment_size, N=None, counts=None):
-    """Get Fourier transforms from different segments of the observation.
+def get_flux_iterable_from_segments(times, gti, segment_size, N=None, counts=None, errors=None):
+    """Get fluxes from different segments of the observation.
 
     If ``counts`` is ``None``, the input times are interpreted as events.
     At least one between ``N`` and ``counts`` needs to be specified.
@@ -440,10 +441,10 @@ def get_fts_from_segments(times, gti, segment_size, N=None, counts=None):
 
     Returns
     -------
-    ft : complex `np.array`
-        the Fourier transform
-    Nph : int
-        the number of photons in the segment.
+    cts : `np.array`
+        Array of counts
+    err : `np.array`
+        (optional) if ``errors`` is None, an array of errors in the segment
 
     """
     if counts is None and N is None:
@@ -455,20 +456,271 @@ def get_fts_from_segments(times, gti, segment_size, N=None, counts=None):
 
     for s, e, idx0, idx1 in fun(times, gti, segment_size):
         if idx1 - idx0 < 2:
-            yield None, None
+            yield None
             continue
 
         if counts is None:
             event_times = times[idx0:idx1]
             # counts, _ = np.histogram(event_times - s, bins=bins)
             cts = histogram((event_times - s).astype(float), bins=N, range=[0, segment_size])
-            Nph = idx1 - idx0
         else:
             cts = counts[idx0:idx1]
-            Nph = np.sum(cts)
+            if errors is not None:
+                cts = cts, errors[idx0:idx1]
+        yield cts
 
-        ft = fft(cts)
-        yield ft, Nph
+
+def avg_pds_from_iterable(flux_iterable, dt, norm="abs", use_common_mean=True, silent=False):
+    """Calculate the average periodogram from an iterable of light curves
+
+    Parameters
+    ----------
+    flux_iterable : `iterable` of `np.array`s or of tuples (`np.array`, `np.array`)
+        Iterable providing either equal segments of light curve, or of light curve
+        and errors. They must all be of the same length.
+    dt : float
+        Time resolution of the light curves used to produce periodograms
+
+    Other Parameters
+    ----------------
+    norm : str, default "abs"
+        The normalization of the periodogram. "abs" is absolute rms, "frac" is
+        fractional rms, "leahy" is Leahy+83 normalization, and "none" is the
+        unnormalized periodogram
+    use_common_mean : bool, default True
+        The mean of the light curve can be estimated in each interval, or on
+        the full light curve. This gives different results (Alston+2013).
+        Here we assume the mean is calculated on the full light curve, but
+        the user can set ``use_common_mean`` to False to calculate it on a
+        per-segment basis.
+    silent : bool, default False
+        Silence the progress bars
+
+    Returns
+    -------
+    freq : `np.array`
+        The periodogram frequencies
+    pds : `np.array`
+        The normalized periodogram powers
+    N : int
+        the number of bins in the light curves used in each segment
+    M : int
+        the number of averaged periodograms
+    mean : float
+        the mean counts per bin
+    """
+    local_show_progress = show_progress
+    if silent:
+
+        def local_show_progress(a):
+            return a
+
+    cross = None
+    M = 0
+
+    common_mean = 0
+    common_variance = None
+    for flux in local_show_progress(flux_iterable):
+        if flux is None:
+            continue
+
+        variance = None
+        if flux is tuple:
+            flux, err = flux
+            variance = np.mean(err) ** 2
+
+        N = flux.size
+        ft = fft(flux)
+
+        nph = flux.sum()
+        unnorm_power = (ft * ft.conj()).real
+        common_mean += nph
+
+        if variance is not None:
+            common_variance += variance
+
+        if cross is None:
+            fgt0 = positive_fft_bins(N)
+            freq = fftfreq(N, dt)[fgt0]
+
+        unnorm_power = unnorm_power[fgt0]
+
+        if use_common_mean:
+            cs_seg = unnorm_power
+        else:
+            mean = nph / N
+
+            cs_seg = normalize_crossspectrum(
+                unnorm_power, dt, N, mean, norm=norm, variance=variance,
+            )
+
+        if cross is None:
+            cross = cs_seg
+        else:
+            cross += cs_seg
+        M += 1
+
+    if cross is None:
+        return None, None, None, None, None
+    common_mean /= M * N
+    if common_variance is not None:
+        # Note: the variances we summed were means, not sums. Hence M, not M*N
+        common_variance /= M
+    cross /= M * N
+    if use_common_mean:
+        cross = normalize_crossspectrum(
+            unnorm_power, dt, N, common_mean, norm=norm, variance=common_variance
+        )
+
+    return freq, cross, N, M, common_mean
+
+
+def avg_cs_from_iterables(
+    flux_iterable1,
+    flux_iterable2,
+    dt,
+    norm="abs",
+    use_common_mean=True,
+    silent=False,
+    fullspec=False,
+    power_type="all",
+):
+    """Calculate the average cross spectrum from an iterable of light curves
+
+    Parameters
+    ----------
+    flux_iterable1 : `iterable` of `np.array`s or of tuples (`np.array`, `np.array`)
+        Iterable providing either equal segments of light curve, or of light curve
+        and errors. They must all be of the same length.
+    flux_iterable2 : `iterable` of `np.array`s or of tuples (`np.array`, `np.array`)
+        Same as ``flux_iterable1``, for the reference channel
+    dt : float
+        Time resolution of the light curves used to produce periodograms
+
+    Other Parameters
+    ----------------
+    norm : str, default "abs"
+        The normalization of the periodogram. "abs" is absolute rms, "frac" is
+        fractional rms, "leahy" is Leahy+83 normalization, and "none" is the
+        unnormalized periodogram
+    use_common_mean : bool, default True
+        The mean of the light curve can be estimated in each interval, or on
+        the full light curve. This gives different results (Alston+2013).
+        Here we assume the mean is calculated on the full light curve, but
+        the user can set ``use_common_mean`` to False to calculate it on a
+        per-segment basis.
+    fullspec : bool, default False
+        Return the full periodogram, including negative frequencies
+    silent : bool, default False
+        Silence the progress bars
+    power_type : str, default 'all'
+        If 'all', give complex powers. If 'abs', the absolute value; if 'real',
+        the real part
+
+    Returns
+    -------
+    freq : `np.array`
+        The periodogram frequencies
+    pds : `np.array`
+        The normalized periodogram powers
+    N : int
+        the number of bins in the light curves used in each segment
+    M : int
+        the number of averaged periodograms
+    """
+
+    local_show_progress = show_progress
+    if silent:
+
+        def local_show_progress(a):
+            return a
+
+    cross = None
+    M = 0
+
+    common_mean = 0
+    common_variance1 = common_variance2 = common_variance = None
+
+    for flux1, flux2 in local_show_progress(zip(flux_iterable1, flux_iterable2)):
+        if flux1 is None or flux2 is None:
+            continue
+
+        variance1 = variance2 = None
+
+        if flux1 is tuple:
+            flux1, err1 = flux1
+            variance1 = np.mean(err1) ** 2
+        if flux2 is tuple:
+            flux2, err2 = flux2
+            variance2 = np.mean(err2) ** 2
+
+        if variance1 is None or variance2 is None:
+            variance1 = variance2 = None
+        else:
+            if common_variance1 is None:
+                common_variance1 = variance1
+                common_variance2 = variance2
+            else:
+                common_variance1 += variance1
+                common_variance2 += variance2
+
+        N = flux1.size
+        ft1 = fft(flux1)
+        ft2 = fft(flux2)
+
+        if cross is None:
+            freq = fftfreq(N, dt)
+            fgt0 = positive_fft_bins(N)
+
+        nph = np.sqrt(flux1.sum() * flux2.sum())
+        unnorm_power = ft1 * ft2.conj()
+
+        common_mean += nph
+
+        unnorm_power = ft1 * ft2.conj()
+
+        if not fullspec:
+            unnorm_power = unnorm_power[fgt0]
+
+        if use_common_mean:
+            cs_seg = unnorm_power
+        else:
+            mean = nph / N
+
+            cs_seg = normalize_crossspectrum(
+                unnorm_power, dt, N, mean, norm=norm, power_type=power_type
+            )
+
+        if cross is None:
+            cross = cs_seg
+        else:
+            cross += cs_seg
+        M += 1
+
+    if cross is None:
+        return None, None, None, None, None
+    common_mean /= M * N
+    if common_variance1 is not None:
+        # Note: the variances we summed were means, not sums. Hence M, not M*N
+        common_variance1 /= M
+        common_variance2 /= M
+        common_variance = np.sqrt(common_variance1 * common_variance2)
+
+    cross /= M * N
+    if use_common_mean:
+        cross = normalize_crossspectrum(
+            unnorm_power,
+            dt,
+            N,
+            common_mean,
+            norm=norm,
+            variance=common_variance,
+            power_type=power_type,
+        )
+
+    if not fullspec:
+        freq = freq[fgt0]
+    return freq, cross, N, M, common_mean
 
 
 def avg_pds_from_events(
@@ -478,10 +730,9 @@ def avg_pds_from_events(
     dt,
     norm="abs",
     use_common_mean=True,
-    fullspec=False,
     silent=False,
-    power_type="all",
     counts=None,
+    errors=None,
 ):
     """Calculate the average periodogram from a list of event times or a light curve.
 
@@ -513,15 +764,12 @@ def avg_pds_from_events(
         Here we assume the mean is calculated on the full light curve, but
         the user can set ``use_common_mean`` to False to calculate it on a
         per-segment basis.
-    fullspec : bool, default False
-        Return the full periodogram, including negative frequencies
     silent : bool, default False
         Silence the progress bars
-    power_type : str, default 'all'
-        If 'all', give complex powers. If 'abs', the absolute value; if 'real',
-        the real part
     counts : float `np.array`, default None
-        Array of counts per bin
+        Array of counts per bin or fluxes per bin
+    errors : float `np.array`, default None
+        Array of errors on the counts above
 
     Returns
     -------
@@ -539,58 +787,12 @@ def avg_pds_from_events(
     N = np.rint(segment_size / dt).astype(int)
     dt = segment_size / N
 
-    freq = fftfreq(N, dt)
-    fgt0 = positive_fft_bins(N)
-
-    cross = None
-    M = 0
-    local_show_progress = show_progress
-    if silent:
-        local_show_progress = lambda a: a
-
-    if use_common_mean:
-        ctrate = get_total_ctrate(times, gti, segment_size, counts=counts)
-        mean = ctrate * dt
-
-    for ft, nph in local_show_progress(
-        get_fts_from_segments(times, gti, segment_size, N, counts=counts)
-    ):
-
-        if ft is None:
-            continue
-
-        unnorm_power = (ft * ft.conj()).real
-
-        if not fullspec:
-            unnorm_power = unnorm_power[fgt0]
-
-        if use_common_mean:
-            cs_seg = unnorm_power
-        else:
-            mean = nph / N
-
-            cs_seg = normalize_crossspectrum(
-                unnorm_power, dt, N, mean, norm=norm, power_type=power_type
-            )
-
-        if cross is None:
-            cross = cs_seg
-        else:
-            cross += cs_seg
-        M += 1
-
-    if cross is None:
-        return None, None, None, None, None
-
-    cross /= M
-    if use_common_mean:
-        cross = normalize_crossspectrum(
-                unnorm_power, dt, N, mean, norm=norm, power_type=power_type
-            )
-
-    if not fullspec:
-        freq = freq[fgt0]
-    return freq, cross, N, M, mean
+    flux_iterable = get_flux_iterable_from_segments(
+        times, gti, segment_size, N, counts=counts, errors=errors
+    )
+    return avg_pds_from_iterable(
+        flux_iterable, dt, norm=norm, use_common_mean=use_common_mean, silent=silent
+    )
 
 
 def avg_cs_from_events(
@@ -606,6 +808,8 @@ def avg_cs_from_events(
     power_type="all",
     counts1=None,
     counts2=None,
+    errors1=None,
+    errors2=None,
 ):
     """Calculate the average cross spectrum from a list of event times or a light curve.
 
@@ -650,6 +854,10 @@ def avg_cs_from_events(
         Array of counts per bin for channel 1
     counts2 : float `np.array`, default None
         Array of counts per bin for channel 2
+    errors1 : float `np.array`, default None
+        Array of errors on the counts on channel 1
+    errors2 : float `np.array`, default None
+        Array of errors on the counts on channel 2
 
     Returns
     -------
@@ -666,57 +874,19 @@ def avg_cs_from_events(
     # adjust dt
     dt = segment_size / N
 
-    freq = fftfreq(N, dt)
-    fgt0 = positive_fft_bins(N)
-    # gti = cross_two_gtis(events1.gti, events2.gti)
-    # events1.gti = events2.gti = gti
-
-    cross = None
-    M = 0
-    local_show_progress = show_progress
-    if silent:
-        local_show_progress = lambda a: a
-
-    if use_common_mean:
-        ctrate1 = get_total_ctrate(times1, gti, segment_size, counts=counts1)
-        ctrate2 = get_total_ctrate(times2, gti, segment_size, counts=counts2)
-        ctrate = np.sqrt(ctrate1 * ctrate2)
-        mean = ctrate * dt
-
-    for (ft1, nph1), (ft2, nph2) in local_show_progress(
-        zip(
-            get_fts_from_segments(times1, gti, segment_size, N, counts=counts1),
-            get_fts_from_segments(times2, gti, segment_size, N, counts=counts2),
-        )
-    ):
-        if ft1 is None or ft2 is None:
-            continue
-
-        unnorm_power = ft1 * ft2.conj()
-
-        if not fullspec:
-            unnorm_power = unnorm_power[fgt0]
-
-        if use_common_mean:
-            cs_seg = unnorm_power
-        else:
-            nph = np.sqrt(nph1 * nph2)
-            mean = nph / N
-
-            cs_seg = normalize_crossspectrum(
-                unnorm_power, dt, N, mean, norm=norm, power_type=power_type
-            )
-
-        if cross is None:
-            cross = cs_seg
-        else:
-            cross += cs_seg
-        M += 1
-    if cross is None:
-        return None, None, None, None, None
-    cross /= M
-    if use_common_mean:
-        cross = normalize_crossspectrum(cross, dt, N, mean, norm=norm, power_type=power_type)
-    if not fullspec:
-        freq = freq[fgt0]
-    return freq, cross, N, M, mean
+    flux_iterable1 = get_flux_iterable_from_segments(
+        times1, gti, segment_size, N, counts=counts1, errors=errors1
+    )
+    flux_iterable2 = get_flux_iterable_from_segments(
+        times2, gti, segment_size, N, counts=counts2, errors=errors2
+    )
+    return avg_cs_from_iterables(
+        flux_iterable1,
+        flux_iterable2,
+        dt,
+        norm=norm,
+        use_common_mean=use_common_mean,
+        silent=silent,
+        fullspec=fullspec,
+        power_type=power_type,
+    )

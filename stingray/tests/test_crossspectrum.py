@@ -153,7 +153,9 @@ class TestAveragedCrossspectrumEvents(object):
         lccs = AveragedCrossspectrum.from_events(self.events1, self.events2,
                                                  segment_size=1, dt=self.dt, norm='none',
                                                  use_common_mean=False)
-        assert np.allclose(lccs.power.real, self.acs.power.real, rtol=0.01)
+        power1 = lccs.power.real
+        power2 = self.acs.power.real
+        assert np.allclose(power1, power2, rtol=0.01)
 
     def test_from_time_array_works_with_memmap(self):
         with fits.open(os.path.join(datadir, "monol_testA.evt"), memmap=True) as hdul:

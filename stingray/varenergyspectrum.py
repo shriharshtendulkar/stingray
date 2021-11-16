@@ -6,7 +6,7 @@ from stingray.lightcurve import Lightcurve
 from stingray.utils import assign_value_if_none, simon, excess_variance, show_progress
 
 from stingray.fourier import avg_cs_from_events, avg_pds_from_events, fftfreq, get_total_ctrate
-from stingray.fourier import poisson_level, error_on_cross_spectrum, cross_to_covariance
+from stingray.fourier import poisson_level, error_on_averaged_cross_spectrum, cross_to_covariance
 from abc import ABCMeta, abstractmethod
 
 
@@ -786,7 +786,7 @@ class LagSpectrum(VarEnergySpectrum):
 
             common_ref = self.same_events and len(cross_two_gtis([eint], self.ref_band)) > 0
 
-            _, _, phi_e, _ = error_on_cross_spectrum(
+            _, _, phi_e, _ = error_on_averaged_cross_spectrum(
                 Cmean, Psmean, Prmean, Mtot, Psnoise, Prnoise, common_ref=common_ref
             )
 
@@ -928,7 +928,7 @@ class ComplexCovarianceSpectrum(VarEnergySpectrum):
                 Cmean = Cmean_real
 
             Psmean = np.mean(Ps[good])
-            _, _, _, Ce = error_on_cross_spectrum(
+            _, _, _, Ce = error_on_averaged_cross_spectrum(
                 Cmean_real, Psmean, Prmean, Mtot, Psnoise, Prnoise, common_ref=common_ref
             )
 
