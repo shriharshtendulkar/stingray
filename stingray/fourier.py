@@ -716,6 +716,7 @@ def avg_cs_from_iterables(
             mean1 = nph1 / N
             mean2 = nph2 / N
             variance = None
+
             if variance1 is not None:
                 variance = np.sqrt(variance1 * variance2)
 
@@ -786,7 +787,10 @@ def avg_cs_from_iterables(
     if not fullspec:
         freq = freq[fgt0]
 
-    return freq, cross, N, M, common_mean, pds1, common_mean1, pds2, common_mean2
+    if return_auxil:
+        return freq, cross, N, M, common_mean, pds1, common_mean1, pds2, common_mean2
+
+    return freq, cross, N, M, common_mean
 
 
 def avg_pds_from_events(

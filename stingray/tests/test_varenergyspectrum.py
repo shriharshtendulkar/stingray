@@ -130,10 +130,10 @@ class TestRmsAndCovSpectrum(object):
         cls.bin_time = 0.01
 
         data = np.load(os.path.join(datadir, "sample_variable_lc.npy"))
-        flux = data / 100
+        flux = data / 50
         times = np.arange(data.size) * cls.bin_time
 
-        test_lc = Lightcurve(times, flux, err_dist="gauss", dt=0.01, skip_checks=True)
+        test_lc = Lightcurve(times, flux, err_dist="gauss", dt=cls.bin_time, skip_checks=True)
 
         cls.test_ev1, cls.test_ev2 = EventList(), EventList()
         cls.test_ev1.simulate_times(test_lc)
@@ -182,16 +182,18 @@ class TestRmsAndCovSpectrum(object):
             freq_interval=[0.00001, 0.1],
             energy_spec=(0.3, 12, 2, "lin"),
             bin_time=self.bin_time / 2,
-            segment_size=5000,
+            segment_size=100,
             norm=norm,
+            events2=self.test_ev2
         )
         rmsspec = RmsSpectrum(
             self.test_ev1,
             freq_interval=[0.00001, 0.1],
             energy_spec=(0.3, 12, 2, "lin"),
             bin_time=self.bin_time / 2,
-            segment_size=5000,
+            segment_size=100,
             norm=norm,
+            events2=self.test_ev2
         )
 
         cov = covar.spectrum
