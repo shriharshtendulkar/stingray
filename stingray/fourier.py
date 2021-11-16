@@ -458,7 +458,6 @@ def get_flux_iterable_from_segments(times, gti, segment_size, N=None, counts=Non
         if idx1 - idx0 < 2:
             yield None
             continue
-
         if counts is None:
             event_times = times[idx0:idx1]
             # counts, _ = np.histogram(event_times - s, bins=bins)
@@ -566,7 +565,7 @@ def avg_pds_from_iterable(flux_iterable, dt, norm="abs", use_common_mean=True, s
     if common_variance is not None:
         # Note: the variances we summed were means, not sums. Hence M, not M*N
         common_variance /= M
-    cross /= M * N
+    cross /= M
     if use_common_mean:
         cross = normalize_crossspectrum(
             unnorm_power, dt, N, common_mean, norm=norm, variance=common_variance
@@ -706,7 +705,7 @@ def avg_cs_from_iterables(
         common_variance2 /= M
         common_variance = np.sqrt(common_variance1 * common_variance2)
 
-    cross /= M * N
+    cross /= M
     if use_common_mean:
         cross = normalize_crossspectrum(
             unnorm_power,

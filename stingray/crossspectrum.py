@@ -1428,14 +1428,14 @@ class AveragedCrossspectrum(Crossspectrum):
         from .fourier import avg_cs_from_events, avg_pds_from_events
         gti = cross_two_gtis(lc1.gti, lc2.gti)
 
+        err1 = lc1._counts_err
+        err2 = lc2._counts_err
+
         freq, power, N, M, mean = avg_cs_from_events(
             lc1.time, lc2.time, gti, segment_size, lc1.dt,
             norm=norm, use_common_mean=use_common_mean,
             fullspec=fullspec, silent=silent, power_type=power_type,
-            counts1=lc1.counts, counts2=lc2.counts)
-
-        err1 = lc1._counts_err
-        err2 = lc2._counts_err
+            counts1=lc1.counts, counts2=lc2.counts, errors1=err1, errors2=err2)
 
         _, power1, _, _, mean1 = avg_pds_from_events(
             lc1.time, gti, segment_size, lc1.dt,
