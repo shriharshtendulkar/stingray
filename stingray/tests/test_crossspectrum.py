@@ -205,9 +205,13 @@ class TestAveragedCrossspectrumEvents(object):
                 use_common_mean=False)
 
     @pytest.mark.parametrize("norm", ["frac", "abs", "none", "leahy"])
-    def test_from_lc_works(self, norm):
+    def test_from_lc_with_err_works(self, norm):
+        lc1 = self.events1.to_lc(self.dt)
+        lc2 = self.events2.to_lc(self.dt)
+        lc1._counts_err = np.sqrt(lc1.counts.mean()) + np.zeros_like(lc1.counts)
+        lc2._counts_err = np.sqrt(lc2.counts.mean()) + np.zeros_like(lc2.counts)
         pds = AveragedCrossspectrum.from_lightcurve(
-            self.events1.to_lc(self.dt), self.events2.to_lc(self.dt),
+            lc1, lc2,
             segment_size=self.segment_size, norm=norm)
         pds_ev = AveragedCrossspectrum.from_events(
             self.events1, self.events2,

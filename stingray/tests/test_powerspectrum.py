@@ -80,9 +80,11 @@ class TestAveragedPowerspectrumEvents(object):
                 use_common_mean=False)
 
     @pytest.mark.parametrize("norm", ["frac", "abs", "none", "leahy"])
-    def test_from_lc_works(self, norm):
+    def test_from_lc_with_err_works(self, norm):
+        lc = self.events.to_lc(self.dt)
+        lc._counts_err = np.sqrt(lc.counts.mean()) + np.zeros_like(lc.counts)
         pds = AveragedPowerspectrum.from_lightcurve(
-            self.events.to_lc(self.dt), segment_size=self.segment_size, norm=norm, silent=True)
+            lc, segment_size=self.segment_size, norm=norm, silent=True)
         pds_ev = AveragedPowerspectrum.from_events(
             self.events, segment_size=self.segment_size, dt=self.dt, norm=norm, silent=True)
         for attr in ["power", "freq", "m", "n", "nphots", "segment_size"]:
