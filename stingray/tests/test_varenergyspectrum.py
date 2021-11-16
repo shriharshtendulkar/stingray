@@ -1,9 +1,10 @@
+from multiprocessing import Event
 import os
 import numpy as np
 from stingray.events import EventList
 from stingray.varenergyspectrum import VarEnergySpectrum
 from stingray.varenergyspectrum import ComplexCovarianceSpectrum, CovarianceSpectrum
-from stingray.varenergyspectrum import RmsSpectrum, RmsEnergySpectrum
+from stingray.varenergyspectrum import RmsSpectrum, RmsEnergySpectrum, CountSpectrum
 from stingray.varenergyspectrum import LagSpectrum, LagEnergySpectrum
 from stingray.varenergyspectrum import ExcessVarianceSpectrum
 from stingray.lightcurve import Lightcurve
@@ -119,6 +120,21 @@ class TestVarEnergySpectrum(object):
         base_lc, ref_lc = vespec._construct_lightcurves([0, 0.5], tstart=0, tstop=0.65)
         np.testing.assert_allclose(base_lc.counts, [1, 0, 2, 1, 0, 0])
         np.testing.assert_allclose(ref_lc.counts, [0, 0, 0, 0, 1, 1])
+
+
+class TestCountSpectrum(object):
+    @classmethod
+    def setup_class(cls):
+
+        cls.times = [0.1, 2, 4, 5.5]
+        cls.energy = [3, 5, 2, 4]
+
+        cls.events = EventList(time=cls.times, energy=cls.energy, pi=cls.energy, gti=[[0, 6.]])
+
+    @pytest.mark.parametrize("use_pi", [False, True])
+    def test_counts(self, use_pi):
+        ctsspec = CountSpectrum(self.events, [1.5, 3.5, 6.5], use_pi=use_pi)
+        assert np.allclose(ctsspec.spectrum, 2)
 
 
 class TestRmsAndCovSpectrum(object):

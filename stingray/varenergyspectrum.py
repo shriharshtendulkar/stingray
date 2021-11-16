@@ -242,8 +242,11 @@ class VarEnergySpectrum(metaclass=ABCMeta):
         self.spectrum = np.zeros(len(self.energy_intervals), dtype=dtype) + np.nan
         self.spectrum_error = np.zeros_like(self.spectrum, dtype=dtype) + np.nan
 
-    def _get_times_from_energy_range(self, events, erange):
-        energies = events.energy
+    def _get_times_from_energy_range(self, events, erange, use_pi=False):
+        if use_pi:
+            energies = events.pi
+        else:
+            energies = events.energy
         mask = (energies >= erange[0]) & (energies < erange[1])
         return events.time[mask]
 
@@ -636,11 +639,7 @@ class CountSpectrum(VarEnergySpectrum):
         self,
         events,
         energy_spec,
-        ref_band=None,
-        bin_time=1,
-        use_pi=False,
-        segment_size=None,
-        events2=None,
+        use_pi=False
     ):
 
         VarEnergySpectrum.__init__(
@@ -648,18 +647,14 @@ class CountSpectrum(VarEnergySpectrum):
             events,
             None,
             energy_spec,
-            bin_time=bin_time,
             use_pi=use_pi,
-            ref_band=ref_band,
-            segment_size=segment_size,
-            events2=events2,
         )
 
     def _spectrum_function(self):
         events = self.events1
 
         for i, eint in show_progress(enumerate(self.energy_intervals)):
-            sub_events = self._get_times_from_energy_range(events, eint)
+            sub_events = self._get_times_from_energy_range(events, eint, use_pi=self.use_pi)
 
             sp = sub_events.size
             self.spectrum[i] = sp
