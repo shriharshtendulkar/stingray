@@ -29,21 +29,45 @@ class TestAveragedPowerspectrumEvents(object):
         cls.events = EventList(times, gti=gti)
 
         cls.lc = cls.events
+        cls.leahy_pds = AveragedPowerspectrum(
+            cls.lc, segment_size=cls.segment_size, dt=cls.dt, norm="leahy", silent=True)
+
 
     def test_from_events_works(self):
-        pds = AveragedPowerspectrum(
-            self.lc, segment_size=self.segment_size, dt=self.dt, norm="leahy", silent=True)
         pds_ev = AveragedPowerspectrum.from_events(
             self.events, segment_size=self.segment_size, dt=self.dt, norm="leahy", silent=True)
-        assert np.allclose(pds.power, pds_ev.power)
+        assert np.allclose(self.leahy_pds.power, pds_ev.power)
 
     def test_from_lc_iter_works(self):
-        pds = AveragedPowerspectrum(
-            self.lc, segment_size=self.segment_size, dt=self.dt, norm="leahy", silent=True)
         pds_ev = AveragedPowerspectrum.from_lc_iterable(
             self.events.to_lc_iter(self.dt, self.segment_size),
             segment_size=self.segment_size, dt=self.dt, norm="leahy", silent=True)
-        assert np.allclose(pds.power, pds_ev.power)
+        assert np.allclose(self.leahy_pds.power, pds_ev.power)
+
+    def test_from_lc_iter_with_err_works(self):
+        def iter_lc_with_errs(iter_lc):
+            for lc in iter_lc:
+                lc._counts_err = np.zeros_like(lc.counts) + lc.counts.mean()**0.5
+                yield lc
+
+        lccs = AveragedPowerspectrum.from_lc_iterable(
+            iter_lc_with_errs(self.events.to_lc_iter(self.dt, self.segment_size)),
+            segment_size=self.segment_size, dt=self.dt, norm='leahy', silent=True)
+        power1 = lccs.power.real
+        power2 = self.leahy_pds.power.real
+        assert np.allclose(power1, power2, rtol=0.01)
+
+    def test_from_lc_iter_counts_only_works(self):
+        def iter_lc_counts_only(iter_lc):
+            for lc in iter_lc:
+                yield lc.counts
+
+        lccs = AveragedPowerspectrum.from_lc_iterable(
+            iter_lc_counts_only(self.events.to_lc_iter(self.dt, self.segment_size)),
+            segment_size=self.segment_size, dt=self.dt, norm='leahy', silent=True)
+        power1 = lccs.power.real
+        power2 = self.leahy_pds.power.real
+        assert np.allclose(power1, power2, rtol=0.01)
 
     def test_from_time_array_works_with_memmap(self):
         with fits.open(os.path.join(datadir, "monol_testA.evt"), memmap=True) as hdul:

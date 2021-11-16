@@ -525,7 +525,7 @@ def avg_pds_from_iterable(flux_iterable, dt, norm="abs", use_common_mean=True, s
             continue
 
         variance = None
-        if flux is tuple:
+        if isinstance(flux, tuple):
             flux, err = flux
             variance = np.mean(err) ** 2
 
@@ -537,7 +537,10 @@ def avg_pds_from_iterable(flux_iterable, dt, norm="abs", use_common_mean=True, s
         common_mean += nph
 
         if variance is not None:
-            common_variance += variance
+            if common_variance is None:
+                common_variance = variance
+            else:
+                common_variance += variance
 
         if cross is None:
             fgt0 = positive_fft_bins(N)
@@ -659,11 +662,10 @@ def avg_cs_from_iterables(
             continue
 
         variance1 = variance2 = None
-
-        if flux1 is tuple:
+        if isinstance(flux1, tuple):
             flux1, err1 = flux1
             variance1 = np.mean(err1) ** 2
-        if flux2 is tuple:
+        if isinstance(flux2, tuple):
             flux2, err2 = flux2
             variance2 = np.mean(err2) ** 2
 

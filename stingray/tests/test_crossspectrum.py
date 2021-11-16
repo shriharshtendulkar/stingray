@@ -165,6 +165,33 @@ class TestAveragedCrossspectrumEvents(object):
         power2 = self.acs.power.real
         assert np.allclose(power1, power2, rtol=0.01)
 
+    def test_from_lc_iter_with_err_works(self):
+        def iter_lc_with_errs(iter_lc):
+            for lc in iter_lc:
+                lc._counts_err = np.zeros_like(lc.counts) + lc.counts.mean()**0.5
+                yield lc
+
+        lccs = AveragedCrossspectrum.from_lc_iterable(
+            iter_lc_with_errs(self.events1.to_lc_iter(self.dt, self.segment_size)),
+            iter_lc_with_errs(self.events2.to_lc_iter(self.dt, self.segment_size)),
+            segment_size=self.segment_size, dt=self.dt, norm='none', silent=True)
+        power1 = lccs.power.real
+        power2 = self.acs.power.real
+        assert np.allclose(power1, power2, rtol=0.01)
+
+    def test_from_lc_iter_counts_only_works(self):
+        def iter_lc_counts_only(iter_lc):
+            for lc in iter_lc:
+                yield lc.counts
+
+        lccs = AveragedCrossspectrum.from_lc_iterable(
+            iter_lc_counts_only(self.events1.to_lc_iter(self.dt, self.segment_size)),
+            iter_lc_counts_only(self.events2.to_lc_iter(self.dt, self.segment_size)),
+            segment_size=self.segment_size, dt=self.dt, norm='none', silent=True)
+        power1 = lccs.power.real
+        power2 = self.acs.power.real
+        assert np.allclose(power1, power2, rtol=0.01)
+
     def test_from_time_array_works_with_memmap(self):
         with fits.open(os.path.join(datadir, "monol_testA.evt"), memmap=True) as hdul:
             times1 = hdul[1].data["TIME"]
