@@ -1223,14 +1223,18 @@ def hist1d_numba_seq(a, bins, ranges, use_memmap=False, tmp=None):
     >>> # The number of bins is small, memory map was not used!
     >>> assert not os.path.exists('out.npy')
     >>> H, xedges = np.histogram(x, bins=10**8, range=[0., 1.])
-    >>> Hn = hist1d_numba_seq(x, bins=10**8, ranges=[0., 1.], tmp='out.npy',
+    >>> Hn = hist1d_numba_seq(x, bins=10**8, ranges=[0., 1.],
+    ...                       use_memmap=True, tmp='out.npy')
+    >>> assert np.all(H == Hn)
+    >>> assert os.path.exists('out.npy')  # Created!
+    >>> # Here, instead, it will create a temporary file for the memory map
+    >>> Hn = hist1d_numba_seq(x, bins=10**8, ranges=[0., 1.],
     ...                       use_memmap=True)
     >>> assert np.all(H == Hn)
-    >>> assert os.path.exists('out.npy')
     """
     if bins > 10 ** 7 and use_memmap:
         if tmp is None:
-            tmp = tempfile.NamedTemporaryFile("w+")
+            tmp = tempfile.NamedTemporaryFile("w+", suffix=".npy").name
         hist_arr = np.lib.format.open_memmap(
             tmp, mode="w+", dtype=a.dtype, shape=(bins,)
         )

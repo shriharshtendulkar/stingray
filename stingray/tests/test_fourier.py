@@ -74,19 +74,24 @@ class TestFourier(object):
     @classmethod
     def setup_class(cls):
         cls.dt = 1
-        cls.times = np.sort(np.random.uniform(0, 1000, 1000))
-        cls.gti = np.asarray([[0, 1000]])
-        cls.counts, bins = np.histogram(cls.times, bins=np.linspace(0, 1000, 1001))
+        cls.length = 100
+        cls.ctrate = 10000
+        cls.N = np.rint(cls.length / cls.dt).astype(int)
+        cls.times = np.sort(np.random.uniform(0, cls.length, int(cls.length * cls.ctrate)))
+        cls.gti = np.asarray([[0, cls.length]])
+        cls.counts, bins = np.histogram(cls.times, bins=np.linspace(0, cls.length, cls.N + 1))
+        cls.errs = np.ones_like(cls.counts) + np.sqrt(cls.ctrate)
         cls.bin_times = (bins[:-1] + bins[1:]) / 2
-        cls.segment_size = 10.0
-        cls.times2 = np.sort(np.random.uniform(0, 1000, 1000))
-        cls.counts2, _ = np.histogram(cls.times2, bins=np.linspace(0, 1000, 1001))
+        cls.segment_size = 5.0
+        cls.times2 = np.sort(np.random.uniform(0, cls.length, int(cls.length * cls.ctrate)))
+        cls.counts2, _ = np.histogram(cls.times2, bins=np.linspace(0, cls.length, cls.N + 1))
+        cls.errs2 = np.ones_like(cls.counts2) + np.sqrt(cls.ctrate)
 
     def test_ctrate_events(self):
-        assert get_total_ctrate(self.times, self.gti, self.segment_size) == 1.0
+        assert get_total_ctrate(self.times, self.gti, self.segment_size) == self.ctrate
 
     def test_ctrate_counts(self):
-        assert get_total_ctrate(self.bin_times, self.gti, self.segment_size, self.counts) == 1.0
+        assert get_total_ctrate(self.bin_times, self.gti, self.segment_size, self.counts) == self.ctrate
 
     def test_fts_from_segments_invalid(self):
         with pytest.raises(ValueError) as excinfo:
@@ -96,7 +101,7 @@ class TestFourier(object):
         assert 'At least one between counts' in str(excinfo.value)
 
     def test_fts_from_segments_cts_and_events_are_equal(self):
-        N = 10
+        N = np.rint(self.segment_size / self.dt).astype(int)
         fts_evts = [
             f for f in get_flux_iterable_from_segments(self.times, self.gti, self.segment_size, N=N)
         ]
@@ -115,10 +120,11 @@ class TestFourier(object):
         for oe in out_ev:
             assert oe is None
 
-    def test_avg_cs_bad_input(self):
+    @pytest.mark.parametrize("return_auxil", [True, False])
+    def test_avg_cs_bad_input(self, return_auxil):
         times1 = np.sort(np.random.uniform(0, 1000, 1))
         times2 = np.sort(np.random.uniform(0, 1000, 1))
-        out_ev = avg_cs_from_events(times1, times2, self.gti, self.segment_size, self.dt)
+        out_ev = avg_cs_from_events(times1, times2, self.gti, self.segment_size, self.dt, return_auxil=return_auxil)
         for oe in out_ev:
             assert oe is None
 
@@ -153,6 +159,36 @@ class TestFourier(object):
 
     @pytest.mark.parametrize("use_common_mean", [True, False])
     @pytest.mark.parametrize("norm", ["frac", "abs", "none", "leahy"])
+    def test_avg_pds_cts_and_err_and_events_are_equal(self, norm, use_common_mean):
+        out_ev = avg_pds_from_events(
+            self.times,
+            self.gti,
+            self.segment_size,
+            self.dt,
+            norm=norm,
+            use_common_mean=use_common_mean,
+            silent=True,
+            counts=None,
+        )
+        out_ct = avg_pds_from_events(
+            self.bin_times,
+            self.gti,
+            self.segment_size,
+            self.dt,
+            norm=norm,
+            use_common_mean=use_common_mean,
+            silent=True,
+            counts=self.counts,
+            errors=self.errs,
+        )
+        for oe, oc in zip(out_ev, out_ct):
+            if isinstance(oe, Iterable):
+                assert np.allclose(oe, oc, rtol=0.05)
+            else:
+                assert np.isclose(oe, oc)
+
+    @pytest.mark.parametrize("use_common_mean", [True, False])
+    @pytest.mark.parametrize("norm", ["frac", "abs", "none", "leahy"])
     def test_avg_cs_cts_and_events_are_equal(self, norm, use_common_mean):
         out_ev = avg_cs_from_events(
             self.times,
@@ -179,6 +215,39 @@ class TestFourier(object):
         for oe, oc in zip(out_ev, out_ct):
             if isinstance(oe, Iterable):
                 assert np.allclose(oe, oc)
+            else:
+                assert np.isclose(oe, oc)
+
+    @pytest.mark.parametrize("use_common_mean", [True, False])
+    @pytest.mark.parametrize("norm", ["frac", "abs", "none", "leahy"])
+    def test_avg_cs_cts_and_err_and_events_are_equal(self, norm, use_common_mean):
+        out_ev = avg_cs_from_events(
+            self.times,
+            self.times2,
+            self.gti,
+            self.segment_size,
+            self.dt,
+            norm=norm,
+            use_common_mean=use_common_mean,
+            silent=False,
+        )
+        out_ct = avg_cs_from_events(
+            self.bin_times,
+            self.bin_times,
+            self.gti,
+            self.segment_size,
+            self.dt,
+            norm=norm,
+            use_common_mean=use_common_mean,
+            silent=False,
+            counts1=self.counts,
+            counts2=self.counts2,
+            errors1=self.errs,
+            errors2=self.errs2,
+        )
+        for oe, oc in zip(out_ev, out_ct):
+            if isinstance(oe, Iterable):
+                assert np.allclose(oe.real, oc.real, rtol=0.1)
             else:
                 assert np.isclose(oe, oc)
 

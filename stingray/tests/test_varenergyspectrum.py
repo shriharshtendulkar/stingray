@@ -32,9 +32,16 @@ class TestExcVarEnergySpectrum(object):
         cls.test_ev1.energy = np.random.uniform(0.3, 12, len(cls.test_ev1.time))
 
     def test_allocate(self):
-        exv = ExcessVarianceSpectrum(
+        _ = ExcessVarianceSpectrum(
             self.test_ev1, [0.0, 100], (0.3, 12, 5, "lin"), bin_time=1, segment_size=100
         )
+
+    def test_invalid_norm(self):
+        with pytest.raises(ValueError):
+            _ = ExcessVarianceSpectrum(
+                self.test_ev1, [0.0, 100], (0.3, 12, 5, "lin"), bin_time=1, segment_size=100,
+                normalization="asdfghjkl"
+            )
 
 
 class TestVarEnergySpectrum(object):
@@ -155,6 +162,17 @@ class TestRmsAndCovSpectrum(object):
         cls.test_ev2.simulate_times(test_lc)
         cls.test_ev1.energy = np.random.uniform(0.3, 12, len(cls.test_ev1.time))
         cls.test_ev2.energy = np.random.uniform(0.3, 12, len(cls.test_ev2.time))
+
+    def test_create_complexcovariance(self):
+        _ = ComplexCovarianceSpectrum(
+            self.test_ev1,
+            freq_interval=[0.00001, 0.1],
+            energy_spec=(0.3, 12, 2, "lin"),
+            bin_time=self.bin_time / 2,
+            segment_size=100,
+            norm="abs",
+            events2=self.test_ev2
+        )
 
     @pytest.mark.parametrize("norm", ["frac", "abs"])
     def test_correct_rms_values_vs_cross(self, norm):

@@ -1223,6 +1223,11 @@ def gti_border_bins(gtis, time, dt=None, epsilon=0.001):
     --------
     >>> times = np.arange(0.5, 13.5)
 
+    >>> gti_border_bins([[16., 18.]], times)
+    Traceback (most recent call last):
+        ...
+    ValueError: Invalid time interval for the given GTIs
+
     >>> start_bins, stop_bins = gti_border_bins(
     ...    [[0, 5], [6, 8]], times)
 
