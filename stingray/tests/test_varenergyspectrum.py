@@ -232,7 +232,7 @@ class TestLagEnergySpectrum(object):
         dt = 0.01
         cls.time_lag = 5
         data = np.load(os.path.join(datadir, "sample_variable_lc.npy"))
-        flux = data / 10
+        flux = data
         times = np.arange(data.size) * dt
         maxfreq = 0.25 / cls.time_lag
         roll_amount = int(cls.time_lag // dt)
@@ -262,6 +262,7 @@ class TestLagEnergySpectrum(object):
     def test_lagspectrum_values_and_errors(self):
         assert np.all(np.abs(self.lag.spectrum - self.time_lag) < 3 * self.lag.spectrum_error)
 
+    def test_lagspectrum_invalid_warns(self):
         ev = EventList(time=[], energy=[], gti=self.lag.events1.gti)
         with pytest.warns(UserWarning) as record:
             lag = LagSpectrum(
