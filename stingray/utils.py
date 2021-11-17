@@ -1179,6 +1179,8 @@ def compute_bin(x, bin_edges):
     1
     >>> compute_bin(10, bin_edges)
     1
+    >>> compute_bin(11, bin_edges) is None
+    True
     """
 
     # assuming uniform bins for now

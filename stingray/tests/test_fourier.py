@@ -255,7 +255,7 @@ class TestFourier(object):
 class TestNorms(object):
     @classmethod
     def setup_class(cls):
-        cls.mean = cls.var = 100000
+        cls.mean = cls.var = 100000.
         cls.N = 800000
         cls.dt = 0.2
         cls.df = 1 / (cls.N * cls.dt)
@@ -263,7 +263,7 @@ class TestNorms(object):
         good = freq > 0
         cls.good = good
         cls.meanrate = cls.mean / cls.dt
-        cls.lc = np.random.poisson(cls.mean, cls.N)
+        cls.lc = np.random.poisson(cls.mean, cls.N).astype(float)
         cls.pds = (np.abs(np.fft.fft(cls.lc)) ** 2)[good]
         cls.lc_bksub = cls.lc - cls.mean
         cls.pds_bksub = (np.abs(np.fft.fft(cls.lc_bksub)) ** 2)[good]

@@ -74,9 +74,9 @@ def poisson_level(meanrate=0, norm="abs"):
     ValueError: Unknown value for norm: asdfwrqfasdh3r...
     """
     if norm == "abs":
-        return 2 * meanrate
+        return 2. * meanrate
     if norm == "frac":
-        return 2 / meanrate
+        return 2. / meanrate
     if norm == "leahy":
         return 2.0
     raise ValueError(f"Unknown value for norm: {norm}")
@@ -103,7 +103,7 @@ def normalize_frac(power, dt, N, mean):
     #     meanrate = mean / dt
     #     norm = 2 / (Nph * meanrate) = 2 * dt / (mean**2 * N)
 
-    return power * 2 * dt / (mean ** 2 * N)
+    return power * 2. * dt / (mean ** 2 * N)
 
 
 def normalize_abs(power, dt, N):
@@ -126,7 +126,7 @@ def normalize_abs(power, dt, N):
     #     meanrate = mean / dt
     #     norm = 2 / (Nph * meanrate) * meanrate**2 = 2 * dt / (mean**2 * N) * mean**2 / dt**2
 
-    return power * 2 / N / dt
+    return power * 2. / N / dt
 
 
 def normalize_leahy_from_variance(power, variance, N):
@@ -134,9 +134,9 @@ def normalize_leahy_from_variance(power, variance, N):
 
     Examples
     --------
-    >>> mean = var = 100000
+    >>> mean = var = 100000.
     >>> N = 1000000
-    >>> lc = np.random.poisson(mean, N)
+    >>> lc = np.random.poisson(mean, N).astype(float)
     >>> pds = np.abs(fft(lc))**2
     >>> pdsnorm = normalize_leahy_from_variance(pds, var, lc.size)
     >>> np.isclose(pdsnorm[0], 2 * np.sum(lc), rtol=0.01)
@@ -144,7 +144,7 @@ def normalize_leahy_from_variance(power, variance, N):
     >>> np.isclose(pdsnorm[1:N//2].mean(), poisson_level(norm="leahy"), rtol=0.01)
     True
     """
-    return power * 2 / (variance * N)
+    return power * 2. / (variance * N)
 
 
 def normalize_leahy_poisson(power, Nph):
@@ -152,9 +152,9 @@ def normalize_leahy_poisson(power, Nph):
 
     Examples
     --------
-    >>> mean = var = 100000
+    >>> mean = var = 100000.
     >>> N = 1000000
-    >>> lc = np.random.poisson(mean, N)
+    >>> lc = np.random.poisson(mean, N).astype(float)
     >>> pds = np.abs(fft(lc))**2
     >>> pdsnorm = normalize_leahy_poisson(pds, np.sum(lc))
     >>> np.isclose(pdsnorm[0], 2 * np.sum(lc), rtol=0.01)
@@ -162,7 +162,7 @@ def normalize_leahy_poisson(power, Nph):
     >>> np.isclose(pdsnorm[1:N//2].mean(), poisson_level(norm="leahy"), rtol=0.01)
     True
     """
-    return power * 2 / Nph
+    return power * 2. / Nph
 
 
 def normalize_crossspectrum(unnorm_power, dt, N, mean, variance=None, norm="abs", power_type="all"):
@@ -462,9 +462,12 @@ def get_flux_iterable_from_segments(times, gti, segment_size, N=None, counts=Non
         if counts is None:
             event_times = times[idx0:idx1]
             # counts, _ = np.histogram(event_times - s, bins=bins)
-            cts = histogram((event_times - s).astype(float), bins=N, range=[0, segment_size])
+            # astype here serves to avoid integer rounding issues in Windows,
+            # where long is a 32-bit integer.
+            cts = histogram((event_times - s).astype(float), bins=N,
+                            range=[0, segment_size]).astype(float)
         else:
-            cts = counts[idx0:idx1]
+            cts = counts[idx0:idx1].astype(float)
             if errors is not None:
                 cts = cts, errors[idx0:idx1]
         yield cts
