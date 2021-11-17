@@ -202,6 +202,9 @@ class EventList(object):
         ----------
         dt: float
             Binning time of the light curves
+
+        Other parameters
+        ----------------
         segment_size : float, default None
             Optional segment size. If None, use the GTI boundaries
 
@@ -589,12 +592,14 @@ class EventList(object):
 
         Examples
         --------
-        >>> evt = EventList(time=[0, 1, 2])
+        >>> evt = EventList(time=[0, 1, 2], mission="nustar")
         >>> newev0 = evt.apply_mask([True, True, False], inplace=False);
         >>> newev1 = evt.apply_mask([True, True, False], inplace=True);
         >>> np.allclose(newev0.time, [0, 1])
         True
         >>> np.allclose(newev1.time, [0, 1])
+        True
+        >>> newev0.mission == "nustar"
         True
         >>> evt is newev1
         True
