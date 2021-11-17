@@ -464,7 +464,8 @@ class RmsSpectrum(VarEnergySpectrum):
                     silent=True,
                     norm="abs",
                 )
-
+                if cross is None:
+                    continue
                 Pmean = np.mean(cross[good])
                 Pnoise = 0
                 rmsnoise = np.sqrt(delta_nu_after_mean * np.sqrt(Psnoise * Prnoise))
@@ -472,6 +473,8 @@ class RmsSpectrum(VarEnergySpectrum):
                 _, Ps, N, M, mean = avg_pds_from_events(
                     sub_events, self.gti, self.segment_size, self.bin_time, silent=True, norm="abs"
                 )
+                if Ps is None:
+                    continue
                 Pmean = np.mean(Ps[good])
                 Pnoise = Psnoise
                 rmsnoise = np.sqrt(delta_nu_after_mean * Pnoise)
@@ -859,7 +862,7 @@ class ComplexCovarianceSpectrum(VarEnergySpectrum):
         segment_size=None,
         events2=None,
         norm="abs",
-        return_complex=False,
+        return_complex=True,
     ):
 
         self.norm = norm

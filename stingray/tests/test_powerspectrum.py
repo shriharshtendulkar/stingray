@@ -32,7 +32,6 @@ class TestAveragedPowerspectrumEvents(object):
         cls.leahy_pds = AveragedPowerspectrum(
             cls.lc, segment_size=cls.segment_size, dt=cls.dt, norm="leahy", silent=True)
 
-
     def test_from_events_works(self):
         pds_ev = AveragedPowerspectrum.from_events(
             self.events, segment_size=self.segment_size, dt=self.dt, norm="leahy", silent=True)
@@ -290,10 +289,10 @@ class TestPowerspectrum(object):
                                            size=time.shape[0])
 
         lc = Lightcurve(time, counts=poisson_counts, dt=1,
-                            gti=[[0, 100]])
+                        gti=[[0, 100]])
         ps = Powerspectrum(lc, norm="leahy")
         rms_ps_l, rms_err_l = ps.compute_rms(min_freq=ps.freq[1],
-                                         max_freq=ps.freq[-1], white_noise_offset=0)
+                                             max_freq=ps.freq[-1], white_noise_offset=0)
 
         ps = Powerspectrum(lc, norm="frac")
         rms_ps, rms_err = ps.compute_rms(min_freq=ps.freq[1],
@@ -308,11 +307,11 @@ class TestPowerspectrum(object):
                                            size=time.shape[0])
 
         lc = Lightcurve(time, counts=poisson_counts, dt=1,
-                            gti=[[0, 400]])
+                        gti=[[0, 400]])
         ps = AveragedPowerspectrum(lc, norm="leahy", segment_size=100,
                                    silent=True)
         rms_ps_l, rms_err_l = ps.compute_rms(min_freq=ps.freq[1],
-                                         max_freq=ps.freq[-1], white_noise_offset=0)
+                                             max_freq=ps.freq[-1], white_noise_offset=0)
 
         ps = AveragedPowerspectrum(lc, norm="frac", segment_size=100)
         rms_ps, rms_err = ps.compute_rms(min_freq=ps.freq[1],
@@ -327,7 +326,7 @@ class TestPowerspectrum(object):
                                            size=time.shape[0])
 
         lc = Lightcurve(time, counts=poisson_counts, dt=1,
-                            gti=[[0, 400]])
+                        gti=[[0, 400]])
         ps = AveragedPowerspectrum(lc, norm="frac", segment_size=100)
         rms_ps, rms_err = ps.compute_rms(min_freq=ps.freq[1],
                                          max_freq=ps.freq[-1],
@@ -393,7 +392,7 @@ class TestPowerspectrum(object):
         lc = Lightcurve(time, counts)
         ps = Powerspectrum(lc, norm="abs")
         abs_noise = 2. * 100  # expected Poisson noise level;
-                              # hardcoded value from above
+        # hardcoded value from above
         assert np.isclose(np.mean(ps.power[1:]), abs_noise, atol=50)
 
     def test_fractional_rms_error(self):
@@ -452,7 +451,6 @@ class TestPowerspectrum(object):
         assert np.allclose(cs1.power, cs2.power)
         assert np.allclose(cs1.freq, cs2.freq)
 
-
     def test_classical_significances_runs(self):
         ps = Powerspectrum(self.lc, norm="Leahy")
         ps.classical_significances()
@@ -488,7 +486,6 @@ class TestPowerspectrum(object):
         pval = ps.classical_significances(threshold=threshold,
                                           trial_correction=True)
         assert np.size(pval) == 0
-
 
     def test_classical_significances_with_logbinned_psd(self):
         ps = Powerspectrum(self.lc, norm="leahy")
@@ -823,7 +820,7 @@ class TestDynamicalPowerspectrum(object):
     def test_rebin_time_default_method(self):
         segment_size = 3
         dt_new = 4.0
-        rebin_time = np.array([ 2.,  6., 10.])
+        rebin_time = np.array([2.,  6., 10.])
         rebin_dps = np.array([[0.7962963, 1.16402116, 0.28571429]])
         dps = DynamicalPowerspectrum(self.lc_test, segment_size=segment_size)
         new_dps = dps.rebin_time(dt_new=dt_new)
@@ -852,7 +849,7 @@ class TestDynamicalPowerspectrum(object):
     def test_rebin_time_mean_method(self):
         segment_size = 3
         dt_new = 4.0
-        rebin_time = np.array([ 2.,  6., 10.])
+        rebin_time = np.array([2.,  6., 10.])
         rebin_dps = np.array([[0.59722222, 0.87301587, 0.21428571]])
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", category=UserWarning)
@@ -883,7 +880,7 @@ class TestDynamicalPowerspectrum(object):
     def test_rebin_time_average_method(self):
         segment_size = 3
         dt_new = 4.0
-        rebin_time = np.array([ 2.,  6., 10.])
+        rebin_time = np.array([2.,  6., 10.])
         rebin_dps = np.array([[0.59722222, 0.87301587, 0.21428571]])
 
         with warnings.catch_warnings():

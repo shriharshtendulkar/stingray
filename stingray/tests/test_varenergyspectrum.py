@@ -152,27 +152,62 @@ class TestRmsAndCovSpectrum(object):
         cls.bin_time = 0.01
 
         data = np.load(os.path.join(datadir, "sample_variable_lc.npy"))
+        # No need for huge count rates
         flux = data / 50
         times = np.arange(data.size) * cls.bin_time
-
-        test_lc = Lightcurve(times, flux, err_dist="gauss", dt=cls.bin_time, skip_checks=True)
+        gti = np.asarray([[0, data.size * cls.bin_time]])
+        test_lc = Lightcurve(times, flux, err_dist="gauss", gti=gti,
+                             dt=cls.bin_time, skip_checks=True)
 
         cls.test_ev1, cls.test_ev2 = EventList(), EventList()
         cls.test_ev1.simulate_times(test_lc)
         cls.test_ev2.simulate_times(test_lc)
-        cls.test_ev1.energy = np.random.uniform(0.3, 12, len(cls.test_ev1.time))
-        cls.test_ev2.energy = np.random.uniform(0.3, 12, len(cls.test_ev2.time))
+        N1 = cls.test_ev1.time.size
+        N2 = cls.test_ev2.time.size
+        cls.test_ev1.energy = np.random.uniform(0.3, 12, N1)
+        cls.test_ev2.energy = np.random.uniform(0.3, 12, N2)
+
+        mask = np.sort(np.random.randint(0, min(N1, N2) - 1, 1000))
+        cls.test_ev1_small = cls.test_ev1.apply_mask(mask)
+        cls.test_ev2_small = cls.test_ev2.apply_mask(mask)
 
     def test_create_complexcovariance(self):
         _ = ComplexCovarianceSpectrum(
-            self.test_ev1,
+            self.test_ev1_small,
             freq_interval=[0.00001, 0.1],
             energy_spec=(0.3, 12, 2, "lin"),
             bin_time=self.bin_time / 2,
             segment_size=100,
             norm="abs",
-            events2=self.test_ev2
+            events2=self.test_ev2_small
         )
+
+    @pytest.mark.parametrize("cross", [True, False])
+    @pytest.mark.parametrize("kind", ["rms", "cov", "lag"])
+    def test_empty_subband_cov(self, cross, kind):
+        ev2 = None
+        if cross:
+            ev2 = self.test_ev2_small
+
+        if kind == "rms":
+            func = RmsSpectrum
+        elif kind == "lag":
+            func = LagSpectrum
+        elif kind == "cov":
+            func = ComplexCovarianceSpectrum
+
+        spec = func(
+            self.test_ev1_small,
+            freq_interval=[0.00001, 0.1],
+            energy_spec=[0.3, 12, 15],
+            bin_time=self.bin_time / 2,
+            segment_size=100,
+            events2=ev2
+        )
+        print(spec.spectrum)
+        good = ~np.isnan(spec.spectrum)
+        assert np.count_nonzero(good) == 1
+
 
     @pytest.mark.parametrize("norm", ["frac", "abs"])
     def test_correct_rms_values_vs_cross(self, norm):
