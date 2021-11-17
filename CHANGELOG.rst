@@ -4,6 +4,12 @@ Changelog
 Not Yet Released
 ----------------
 
+- Partial support for non-uniformly sampled data
+- Fixes in the `stingray.simulator` module
+- New stingray.fourier module containing the basic timing products, usable on `numpy` arrays
+- Lots of performance improvements in the `AveragedCrossspectrum` and `AveragedPowerspectrum` classes
+- New methods in `AveragedCrossspectrum` and `AveragedPowerspectrum`: `from_events`, `from_lightcurve`, `from_time_array`, `from_lc_list`
+
 `Full list of changes`__
 
 __ https://github.com/StingraySoftware/stingray/compare/v0.3...main
