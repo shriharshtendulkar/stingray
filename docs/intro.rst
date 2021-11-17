@@ -49,6 +49,12 @@ Other future additions we are currently implementing are:
 * pulsar searches with :math:`H`-test
 * binary pulsar searches
 
+Platform-specific issues
+------------------------
+
+Windows uses an internal 32-bit representation for ``int``. This might create numerical errors when using large integer numbers (e.g. when calculating the sum of a light curve, if the ``lc.counts`` array is an integer).
+Windows users are encouraged to always avoid the use integer arrays in ``Lightcurve`` objects.
+
 Presentations
 =============
 
