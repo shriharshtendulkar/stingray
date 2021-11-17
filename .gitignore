@@ -82,3 +82,5 @@ v
 *.pdf
 *.csv
 .hypothesis
+cov.xml
+*coverage*
