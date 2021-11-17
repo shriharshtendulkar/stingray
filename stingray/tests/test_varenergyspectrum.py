@@ -167,20 +167,21 @@ class TestRmsAndCovSpectrum(object):
         cls.test_ev1.energy = np.random.uniform(0.3, 12, N1)
         cls.test_ev2.energy = np.random.uniform(0.3, 12, N2)
 
-        mask = np.sort(np.random.randint(0, min(N1, N2) - 1, 1000))
+        mask = np.sort(np.random.randint(0, min(N1, N2) - 1, 2000))
         cls.test_ev1_small = cls.test_ev1.apply_mask(mask)
         cls.test_ev2_small = cls.test_ev2.apply_mask(mask)
 
     def test_create_complexcovariance(self):
-        _ = ComplexCovarianceSpectrum(
+        spec = ComplexCovarianceSpectrum(
             self.test_ev1_small,
             freq_interval=[0.00001, 0.1],
             energy_spec=(0.3, 12, 2, "lin"),
             bin_time=self.bin_time / 2,
-            segment_size=100,
+            segment_size=200,
             norm="abs",
             events2=self.test_ev2_small
         )
+        assert np.all(np.iscomplex(spec.spectrum))
 
     @pytest.mark.parametrize("cross", [True, False])
     @pytest.mark.parametrize("kind", ["rms", "cov", "lag"])
@@ -200,11 +201,11 @@ class TestRmsAndCovSpectrum(object):
             self.test_ev1_small,
             freq_interval=[0.00001, 0.1],
             energy_spec=[0.3, 12, 15],
+            ref_band=[[0.3, 12]],
             bin_time=self.bin_time / 2,
-            segment_size=100,
+            segment_size=200,
             events2=ev2
         )
-        print(spec.spectrum)
         good = ~np.isnan(spec.spectrum)
         assert np.count_nonzero(good) == 1
 

@@ -185,7 +185,6 @@ class VarEnergySpectrum(metaclass=ABCMeta):
         events2=None,
         return_complex=False,
     ):
-
         self.events1 = events
         self.events2 = assign_value_if_none(events2, events)
         self._analyze_inputs()
@@ -775,7 +774,6 @@ class LagSpectrum(VarEnergySpectrum):
             _, Ps, _, _, _ = avg_pds_from_events(
                 sub_events, self.gti, self.segment_size, self.bin_time, silent=True, norm="abs"
             )
-
             if cross is None or Ps is None:
                 continue
 
@@ -866,7 +864,6 @@ class ComplexCovarianceSpectrum(VarEnergySpectrum):
     ):
 
         self.norm = norm
-        self.return_complex = return_complex
         VarEnergySpectrum.__init__(
             self,
             events,
@@ -877,6 +874,7 @@ class ComplexCovarianceSpectrum(VarEnergySpectrum):
             ref_band=ref_band,
             segment_size=segment_size,
             events2=events2,
+            return_complex=return_complex
         )
 
     def _spectrum_function(self):
