@@ -7,6 +7,7 @@ Definition of :class:`EventList`.
 import copy
 import pickle
 import warnings
+from collections.abc import Iterable
 
 import numpy as np
 import numpy.random as ra
@@ -164,6 +165,15 @@ class EventList(object):
         if (self.time is not None) and (self.energy is not None):
             if self.time.size != self.energy.size:
                 raise ValueError('Lengths of time and energy must be equal.')
+
+    def array_attrs(self):
+        return [
+            attr for attr in dir(self)
+            if (
+                isinstance(getattr(self, attr), Iterable)
+                and np.shape(getattr(self, attr)) == self.time.shape
+            )
+        ]
 
     def to_lc(self, dt, tstart=None, tseg=None):
         """
@@ -588,23 +598,26 @@ class EventList(object):
         return self.apply_mask(mask, inplace=inplace)
 
     def apply_mask(self, mask, inplace=False):
-        """Apply mask to all same-length list-like event attributes.
-
+        """For compatibility with old stingray version.
         Examples
         --------
         >>> evt = EventList(time=[0, 1, 2], mission="nustar")
+        >>> evt.bubuattr = [222, 111, 333]
         >>> newev0 = evt.apply_mask([True, True, False], inplace=False);
         >>> newev1 = evt.apply_mask([True, True, False], inplace=True);
+        >>> newev0.mission == "nustar"
+        True
         >>> np.allclose(newev0.time, [0, 1])
         True
-        >>> np.allclose(newev1.time, [0, 1])
+        >>> np.allclose(newev0.bubuattr, [222, 111])
         True
-        >>> newev0.mission == "nustar"
+        >>> np.allclose(newev1.time, [0, 1])
         True
         >>> evt is newev1
         True
         """
-        array_attrs = ['time', 'energy', 'pi', 'cal_pi']
+        array_attrs = self.array_attrs()
+
         if inplace:
             new_ev = self
         else:
@@ -615,8 +628,7 @@ class EventList(object):
 
         for attr in array_attrs:
             if hasattr(self, attr) and getattr(self, attr) is not None:
-                setattr(new_ev, attr, getattr(self, attr)[mask])
-
+                setattr(new_ev, attr, np.asarray(getattr(self, attr))[mask])
         return new_ev
 
     def apply_deadtime(self, deadtime, inplace=False, **kwargs):
@@ -728,9 +740,12 @@ class EventList(object):
         from astropy.time import TimeDelta
         from astropy import units as u
         data = {}
-        for attr in ['energy', 'pi']:
-            if hasattr(self, attr) and getattr(self, attr) is not None:
-                data[attr] = np.asarray(getattr(self, attr))
+        array_attrs = self.array_attrs()
+
+        for attr in array_attrs:
+            if attr == "time":
+                continue
+            data[attr] = np.asarray(getattr(self, attr))
 
         if data == {}:
             data = None
@@ -751,22 +766,24 @@ class EventList(object):
     def from_astropy_timeseries(ts):
         from astropy.timeseries import TimeSeries
         from astropy import units as u
-        energy = pi = gti = instr = mission = mjdref = None
-        if 'energy' in ts.colnames:
-            energy = ts['energy']
-        if 'pi' in ts.colnames:
-            pi = ts['pi']
 
-        kwargs = ts.meta
-        ev = EventList(time=ts.time, energy=energy, pi=pi, **kwargs)
+        kwargs = dict([(key.lower(), val) for (key, val) in ts.meta.items()])
+        ev = EventList(time=ts.time, **kwargs)
+        array_attrs = ts.colnames
+
+        for attr in array_attrs:
+            if attr == "time":
+                continue
+            setattr(ev, attr, ts[attr])
 
         return ev
 
     def to_astropy_table(self):
         data = {}
-        for attr in ['time', 'energy', 'pi']:
-            if hasattr(self, attr) and getattr(self, attr) is not None:
-                data[attr] = np.asarray(getattr(self, attr))
+        array_attrs = self.array_attrs()
+
+        for attr in array_attrs:
+            data[attr] = np.asarray(getattr(self, attr))
 
         ts = Table(data)
 
@@ -780,10 +797,12 @@ class EventList(object):
     @staticmethod
     def from_astropy_table(ts):
         kwargs = dict([(key.lower(), val) for (key, val) in ts.meta.items()])
-        for attr in ['time', 'energy', 'pi']:
-            if attr in ts.colnames:
-                kwargs[attr] = ts[attr]
+        ev = EventList(time=ts["time"], **kwargs)
+        array_attrs = ts.colnames
 
-        ev = EventList(**kwargs)
+        for attr in array_attrs:
+            if attr == "time":
+                continue
+            setattr(ev, attr, ts[attr])
 
         return ev
