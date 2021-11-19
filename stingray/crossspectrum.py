@@ -1328,6 +1328,8 @@ class AveragedCrossspectrum(Crossspectrum):
         pds1.type = pds2.type = "powerspectrum"
         cs.pds1 = pds1
         cs.pds2 = pds2
+        # To be fixed
+        cs.power_err = np.abs(cs.power) / np.sqrt(M)
 
         for obj in [cs, pds1, pds2]:
             obj.freq = freq
@@ -1446,6 +1448,7 @@ class AveragedCrossspectrum(Crossspectrum):
         pds1.type = pds2.type = "powerspectrum"
         cs.pds1 = pds1
         cs.pds2 = pds2
+        cs.power_err = np.abs(cs.power) / np.sqrt(M)
 
         for obj in [cs, pds1, pds2]:
             obj.freq = freq
@@ -1534,6 +1537,7 @@ class AveragedCrossspectrum(Crossspectrum):
         pds1.type = pds2.type = "powerspectrum"
         cs.pds1 = pds1
         cs.pds2 = pds2
+        cs.power_err = np.abs(cs.power) / np.sqrt(M)
 
         for obj in [cs, pds1, pds2]:
             obj.freq = freq
