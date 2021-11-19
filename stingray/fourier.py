@@ -646,6 +646,8 @@ def avg_cs_from_iterables(
         The auxiliary PDS from channel 2. Only returned if ``return_auxil`` is ``True``
     mean2 : float
         The mean flux in channel 2. Only returned if ``return_auxil`` is ``True``
+    unnorm_power : `np.array`
+        The unnormalized cross spectral power
     """
 
     local_show_progress = show_progress
@@ -716,8 +718,6 @@ def avg_cs_from_iterables(
 
         if not use_common_mean:
             mean = nph / N
-            mean1 = nph1 / N
-            mean2 = nph2 / N
             variance = None
 
             if variance1 is not None:
@@ -726,26 +726,22 @@ def avg_cs_from_iterables(
             cs_seg = normalize_crossspectrum(
                 unnorm_power, dt, N, mean, norm=norm, power_type=power_type, variance=variance
             )
-            pd1_seg = normalize_crossspectrum(
-                unnorm_pd1, dt, N, mean1, norm=norm, power_type=power_type, variance=variance1
-            )
-            pd1_seg = normalize_crossspectrum(
-                unnorm_pd2, dt, N, mean2, norm=norm, power_type=power_type, variance=variance2
-            )
 
         if cross is None:
             cross = cs_seg
             pds1 = pd1_seg
             pds2 = pd2_seg
+            unnorm_cross = unnorm_power
         else:
             cross += cs_seg
             pds1 += pd1_seg
             pds2 += pd2_seg
+            unnorm_cross += unnorm_power
         M += 1
 
     if cross is None:
         if return_auxil:
-            return [None] * 9
+            return [None] * 10
         return [None] * 5
 
     common_mean1 /= M * N
@@ -759,6 +755,10 @@ def avg_cs_from_iterables(
         common_variance = np.sqrt(common_variance1 * common_variance2)
 
     cross /= M
+    pds1 /= M
+    pds2 /= M
+    unnorm_power /= M
+
     if use_common_mean:
         cross = normalize_crossspectrum(
             cross,
@@ -769,29 +769,12 @@ def avg_cs_from_iterables(
             variance=common_variance,
             power_type=power_type,
         )
-        pds1 = normalize_crossspectrum(
-            pds1,
-            dt,
-            N,
-            common_mean1,
-            norm=norm,
-            variance=common_variance1,
-            power_type=power_type,
-        )
-        pds2 = normalize_crossspectrum(
-            pds2,
-            dt,
-            N,
-            common_mean2,
-            norm=norm,
-            variance=common_variance2,
-            power_type=power_type,
-        )
+
     if not fullspec:
         freq = freq[fgt0]
 
     if return_auxil:
-        return freq, cross, N, M, common_mean, pds1, common_mean1, pds2, common_mean2
+        return freq, cross, N, M, common_mean, pds1, common_mean1, pds2, common_mean2, unnorm_power
 
     return freq, cross, N, M, common_mean
 

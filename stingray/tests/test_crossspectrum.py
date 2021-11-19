@@ -155,6 +155,10 @@ class TestAveragedCrossspectrumEvents(object):
         power1 = lccs.power.real
         power2 = self.acs.power.real
         assert np.allclose(power1, power2, rtol=0.01)
+        lag1, lag1_e = lccs.time_lag()
+        lag2, lag2_e = self.acs.time_lag()
+        assert np.allclose(lag1, lag2)
+        assert np.allclose(lag1_e, lag2_e, equal_nan=True)
 
     def test_from_lc_iter_works(self):
         lccs = AveragedCrossspectrum.from_lc_iterable(

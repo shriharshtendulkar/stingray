@@ -1312,24 +1312,33 @@ class AveragedCrossspectrum(Crossspectrum):
             the real part
         """
 
-        freq, power, N, M, _, power1, mean1, power2, mean2 = avg_cs_from_events(
+        freq, power, N, M, _, power1, mean1, power2, mean2, unnorm_power = avg_cs_from_events(
             times1, times2, gti, segment_size, dt,
             norm=norm, use_common_mean=use_common_mean,
             fullspec=fullspec, silent=silent, power_type=power_type,
             return_auxil=True)
 
         cs = AveragedCrossspectrum()
-        cs.freq = freq
+        pds1 = AveragedCrossspectrum()
+        pds2 = AveragedCrossspectrum()
         cs.power = power
-        cs.pds1 = power1
-        cs.pds2 = power2
-        cs.m = M
-        cs.n = N
-        cs.df = 1 / segment_size
-        cs.nphots1 = mean1 * N
-        cs.nphots2 = mean2 * N
-        cs.fullspec = fullspec
-        cs.segment_size = segment_size
+        pds1.power = power1
+        pds2.power = power2
+        cs.unnorm_power = unnorm_power
+        pds1.type = pds2.type = "powerspectrum"
+        cs.pds1 = pds1
+        cs.pds2 = pds2
+
+        for obj in [cs, pds1, pds2]:
+            obj.freq = freq
+            obj.m = M
+            obj.n = N
+            obj.df = 1 / segment_size
+            obj.nphots1 = mean1 * N
+            obj.nphots2 = mean2 * N
+            obj.fullspec = fullspec
+            obj.segment_size = segment_size
+            obj.norm = norm
 
         return cs
 
@@ -1420,7 +1429,7 @@ class AveragedCrossspectrum(Crossspectrum):
         err1 = lc1._counts_err
         err2 = lc2._counts_err
 
-        freq, power, N, M, _, power1, mean1, power2, mean2 = avg_cs_from_events(
+        freq, power, N, M, _, power1, mean1, power2, mean2, unnorm_power = avg_cs_from_events(
             lc1.time, lc2.time, gti, segment_size, lc1.dt,
             norm=norm, use_common_mean=use_common_mean,
             fullspec=fullspec, silent=silent, power_type=power_type,
@@ -1428,17 +1437,26 @@ class AveragedCrossspectrum(Crossspectrum):
             return_auxil=True)
 
         cs = AveragedCrossspectrum()
-        cs.freq = freq
+        pds1 = AveragedCrossspectrum()
+        pds2 = AveragedCrossspectrum()
         cs.power = power
-        cs.pds1 = power1
-        cs.pds2 = power2
-        cs.m = M
-        cs.n = N
-        cs.df = 1 / segment_size
-        cs.nphots1 = mean1 * N
-        cs.nphots2 = mean2 * N
-        cs.fullspec = fullspec
-        cs.segment_size = segment_size
+        pds1.power = power1
+        pds2.power = power2
+        cs.unnorm_power = unnorm_power
+        pds1.type = pds2.type = "powerspectrum"
+        cs.pds1 = pds1
+        cs.pds2 = pds2
+
+        for obj in [cs, pds1, pds2]:
+            obj.freq = freq
+            obj.m = M
+            obj.n = N
+            obj.df = 1 / segment_size
+            obj.nphots1 = mean1 * N
+            obj.nphots2 = mean2 * N
+            obj.fullspec = fullspec
+            obj.segment_size = segment_size
+            obj.norm = norm
 
         return cs
 
@@ -1494,7 +1512,7 @@ class AveragedCrossspectrum(Crossspectrum):
         iter_lc1 = list(iter_lc1)
         iter_lc2 = list(iter_lc2)
 
-        freq, power, N, M, _, power1, mean1, power2, mean2 = avg_cs_from_iterables(
+        freq, power, N, M, _, power1, mean1, power2, mean2, unnorm_power = avg_cs_from_iterables(
             iterate_lc_counts(iter_lc1),
             iterate_lc_counts(iter_lc2),
             dt,
@@ -1507,17 +1525,26 @@ class AveragedCrossspectrum(Crossspectrum):
         )
 
         cs = AveragedCrossspectrum()
-        cs.freq = freq
+        pds1 = AveragedCrossspectrum()
+        pds2 = AveragedCrossspectrum()
         cs.power = power
-        cs.pds1 = power1
-        cs.pds2 = power2
-        cs.m = M
-        cs.n = N
-        cs.df = 1 / segment_size
-        cs.nphots1 = mean1 * N
-        cs.nphots2 = mean2 * N
-        cs.fullspec = fullspec
-        cs.segment_size = segment_size
+        pds1.power = power1
+        pds2.power = power2
+        cs.unnorm_power = unnorm_power
+        pds1.type = pds2.type = "powerspectrum"
+        cs.pds1 = pds1
+        cs.pds2 = pds2
+
+        for obj in [cs, pds1, pds2]:
+            obj.freq = freq
+            obj.m = M
+            obj.n = N
+            obj.df = 1 / segment_size
+            obj.nphots1 = mean1 * N
+            obj.nphots2 = mean2 * N
+            obj.fullspec = fullspec
+            obj.segment_size = segment_size
+            obj.norm = norm
 
         return cs
 
@@ -1784,8 +1811,11 @@ class AveragedCrossspectrum(Crossspectrum):
                   "significantly low. The result might not follow the "
                   "expected statistical distributions.")
 
+        if self.norm not in ['none', 'abs']:
+            raise ValueError(
+                "Coherence calculation makes sense only when normalization is 'none' or 'abs'")
         # Calculate average coherence
-        unnorm_power_avg = self.unnorm_power
+        unnorm_power_avg = self.power
 
         num = np.absolute(unnorm_power_avg) ** 2
 
