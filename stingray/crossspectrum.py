@@ -1811,9 +1811,6 @@ class AveragedCrossspectrum(Crossspectrum):
                   "significantly low. The result might not follow the "
                   "expected statistical distributions.")
 
-        if self.norm not in ['none', 'abs']:
-            raise ValueError(
-                "Coherence calculation makes sense only when normalization is 'none' or 'abs'")
         # Calculate average coherence
         unnorm_power_avg = self.power
 
