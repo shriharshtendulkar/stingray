@@ -1242,8 +1242,13 @@ def powerspectrum_from_lc_iterable(iter_lc, dt, segment_size=None, norm="frac",
             if hasattr(lc, "counts"):
                 n_bin = np.rint(segment_size / lc.dt).astype(int)
 
+                err = None
+                if lc.err_dist == "gauss":
+                    err = lc.counts_err
+
                 flux_iterable = get_flux_iterable_from_segments(
-                    lc.time, lc.gti, segment_size, n_bin, fluxes=lc.counts, errors=lc._counts_err
+                    lc.time, lc.gti, segment_size, n_bin, fluxes=lc.counts,
+                    errors=err
                 )
                 for out in flux_iterable:
                     yield out

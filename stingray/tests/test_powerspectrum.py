@@ -110,7 +110,26 @@ class TestAveragedPowerspectrumEvents(object):
     def test_from_lc_iter_with_err_works(self):
         def iter_lc_with_errs(iter_lc):
             for lc in iter_lc:
+                # In order for error bars to be considered,
+                # err_dist has to be gauss.
+                lc.err_dist = "gauss"
                 lc._counts_err = np.zeros_like(lc.counts) + lc.counts.mean()**0.5
+                yield lc
+
+        lccs = AveragedPowerspectrum.from_lc_iterable(
+            iter_lc_with_errs(self.events.to_lc_iter(self.dt, self.segment_size)),
+            segment_size=self.segment_size, dt=self.dt, norm='leahy', silent=True)
+        power1 = lccs.power.real
+        power2 = self.leahy_pds.power.real
+        assert np.allclose(power1, power2, rtol=0.01)
+
+    def test_from_lc_iter_with_err_ignored_with_wrong_err_dist(self):
+        def iter_lc_with_errs(iter_lc):
+            for lc in iter_lc:
+                # Not supposed to have error bars
+                lc.err_dist = "poisson"
+                # use a completely wrong error bar, for fun
+                lc._counts_err = np.zeros_like(lc.counts) + 14.2345425252462
                 yield lc
 
         lccs = AveragedPowerspectrum.from_lc_iterable(
