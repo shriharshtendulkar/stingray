@@ -1,0 +1,1020 @@
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+
+    <title>Load events and plot light curve &#8212; stingray v1.1.2.dev118+gd47d50d</title>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/bootstrap-astropy.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/graphviz.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/plot_directive.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/nbsphinx-code-cells.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/css/custom.css" />
+    
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/sphinx_highlight.js"></script>
+    <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+    <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script type="text/javascript" src="../../_static/sidebar.js"></script>
+    <script type="text/javascript" src="../../_static/copybutton.js"></script>
+    <link rel="icon" href="../../_static/stingray_logo.ico"/>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="The Stingray Modelling Interface" href="../../modeling.html" />
+    <link rel="prev" title="Quicklook NuSTAR data with Stingray" href="../DataQuickLook/Quicklook%20NuSTAR%20data%20with%20Stingray.html" />
+    <link href='https://fonts.googleapis.com/css?family=Source+Sans+Pro:200,600' rel='stylesheet' type='text/css'/>
+
+  </head><body>
+<div class="topbar">
+  <a class="brand" title="Documentation Home" href="../../index.html"><span id="logotext1">Sting</span><span id="logotext2">ray</span><span id="logotext3">:docs</span></a>
+  <ul>
+    
+    <li><a class="homelink" title="Astropy Homepage" href="http://www.astropy.org"></a></li>
+    <li><a title="General Index" href="../../genindex.html">Index</a></li>
+    <li><a title="Module Index" href="../../py-modindex.html">Modules</a></li>
+    <li>
+      
+      
+<form action="../../search.html" method="get">
+  <input type="text" name="q" placeholder="Search" />
+  <input type="hidden" name="check_keywords" value="yes" />
+  <input type="hidden" name="area" value="default" />
+</form>
+      
+    </li>
+  </ul>
+</div>
+
+<div class="related">
+    <h3>Navigation</h3>
+    <ul>
+      <li class="right">
+	<a href="../../modeling.html" title="The Stingray Modelling Interface">
+	  next &raquo;
+	</a>
+      </li>
+      <li class="right">
+	<a href="../DataQuickLook/Quicklook%20NuSTAR%20data%20with%20Stingray.html" title="Quicklook NuSTAR data with Stingray">
+	  &laquo; previous
+	</a>
+	 |
+      </li>
+      <li>
+	<a href="../../index.html">stingray v1.1.2.dev118+gd47d50d</a>
+	 &#187;
+      </li>
+      <li><a href="../../dataexplo.html" accesskey="U">Data Exploration</a> &#187;</li>
+      
+      <li>Load events and plot light curve</li> 
+    </ul>
+</div>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <p>In this tutorial, we will run a quicklook spectrotemporal analysis of a NICER observation of one epoch of the 2018 outburst of the accreting black hole MAXI 1820+070, largely reproducing the results from, e.g., <a class="reference external" href="https://ui.adsabs.harvard.edu/abs/2021ApJ...910L...3W/abstract">Wang et al. 2021</a>, <a class="reference external" href="https://ui.adsabs.harvard.edu/abs/2021A%26A...654A..14D/abstract">De Marco et al. 2021</a>. We will not give a scientific interpretation, just pure exploration.</p>
+<p>We will use the <a class="reference external" href="https://docs.stingray.science">Stingray</a> software package, at the version specified in the installation process.</p>
+<p>Let us first install the correct software version. From the shell,</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ pip install stingray pyfftw
+</pre></div>
+</div>
+<p>The source code is available in the <a class="reference external" href="https://github.com/stingraysoftware/stingray">official Github repository</a></p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="o">%</span><span class="k">load_ext</span> autoreload
+<span class="o">%</span><span class="k">autoreload</span> 2
+<span class="o">%</span><span class="k">matplotlib</span> inline
+
+<span class="kn">import</span> <span class="nn">copy</span>
+<span class="kn">import</span> <span class="nn">glob</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="kn">import</span> <span class="nn">matplotlib</span> <span class="k">as</span> <span class="nn">mpl</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+
+<span class="kn">from</span> <span class="nn">astropy.table</span> <span class="kn">import</span> <span class="n">Table</span>
+<span class="kn">from</span> <span class="nn">astropy.modeling</span> <span class="kn">import</span> <span class="n">models</span>
+
+<span class="kn">from</span> <span class="nn">stingray.gti</span> <span class="kn">import</span> <span class="n">create_gti_from_condition</span><span class="p">,</span> <span class="n">gti_border_bins</span><span class="p">,</span> <span class="n">time_intervals_from_gtis</span><span class="p">,</span> <span class="n">cross_two_gtis</span>
+<span class="kn">from</span> <span class="nn">stingray.utils</span> <span class="kn">import</span> <span class="n">show_progress</span>
+<span class="kn">from</span> <span class="nn">stingray.fourier</span> <span class="kn">import</span> <span class="n">avg_cs_from_events</span><span class="p">,</span> <span class="n">avg_pds_from_events</span><span class="p">,</span> <span class="n">poisson_level</span><span class="p">,</span> <span class="n">get_average_ctrate</span>
+<span class="kn">from</span> <span class="nn">stingray</span> <span class="kn">import</span> <span class="n">AveragedPowerspectrum</span><span class="p">,</span> <span class="n">AveragedCrossspectrum</span><span class="p">,</span> <span class="n">EventList</span>
+<span class="kn">from</span> <span class="nn">stingray.modeling.parameterestimation</span> <span class="kn">import</span> <span class="n">PSDLogLikelihood</span>
+
+<span class="n">params</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s1">&#39;font.size&#39;</span><span class="p">:</span> <span class="mi">7</span><span class="p">,</span>
+    <span class="s1">&#39;xtick.major.size&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+    <span class="s1">&#39;xtick.minor.size&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+    <span class="s1">&#39;xtick.major.width&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+    <span class="s1">&#39;xtick.minor.width&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+    <span class="s1">&#39;ytick.major.size&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+    <span class="s1">&#39;ytick.minor.size&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+    <span class="s1">&#39;ytick.major.width&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+    <span class="s1">&#39;ytick.minor.width&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+    <span class="s1">&#39;figure.figsize&#39;</span><span class="p">:</span> <span class="p">(</span><span class="mi">6</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span>
+    <span class="s2">&quot;axes.grid&quot;</span> <span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="s2">&quot;grid.color&quot;</span><span class="p">:</span> <span class="s2">&quot;grey&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;grid.linewidth&quot;</span><span class="p">:</span> <span class="mf">0.3</span><span class="p">,</span>
+    <span class="s2">&quot;grid.linestyle&quot;</span><span class="p">:</span> <span class="s2">&quot;:&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;axes.grid.axis&quot;</span><span class="p">:</span> <span class="s2">&quot;y&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;axes.grid.which&quot;</span><span class="p">:</span> <span class="s2">&quot;both&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;axes.axisbelow&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="s1">&#39;axes.labelsize&#39;</span><span class="p">:</span> <span class="mi">8</span><span class="p">,</span>
+    <span class="s1">&#39;xtick.labelsize&#39;</span><span class="p">:</span> <span class="mi">8</span><span class="p">,</span>
+    <span class="s1">&#39;ytick.labelsize&#39;</span><span class="p">:</span> <span class="mi">8</span><span class="p">,</span>
+    <span class="s1">&#39;legend.fontsize&#39;</span><span class="p">:</span> <span class="mi">8</span><span class="p">,</span>
+    <span class="s1">&#39;legend.title_fontsize&#39;</span><span class="p">:</span> <span class="mi">8</span><span class="p">,</span>
+    <span class="s1">&#39;figure.dpi&#39;</span><span class="p">:</span> <span class="mi">300</span><span class="p">,</span>  <span class="c1"># the left side of the subplots of the figure</span>
+    <span class="s1">&#39;figure.subplot.left&#39;</span><span class="p">:</span> <span class="mf">0.195</span><span class="p">,</span>  <span class="c1"># the left side of the subplots of the figure</span>
+    <span class="s1">&#39;figure.subplot.right&#39;</span><span class="p">:</span> <span class="mf">0.97</span><span class="p">,</span>   <span class="c1"># the right side of the subplots of the figure</span>
+    <span class="s1">&#39;figure.subplot.bottom&#39;</span><span class="p">:</span> <span class="mf">0.145</span><span class="p">,</span>   <span class="c1"># the bottom of the subplots of the figure</span>
+    <span class="s1">&#39;figure.subplot.top&#39;</span><span class="p">:</span> <span class="mf">0.97</span><span class="p">,</span>   <span class="c1"># the top of the subplots of the figure</span>
+    <span class="s1">&#39;figure.subplot.wspace&#39;</span><span class="p">:</span> <span class="mf">0.2</span><span class="p">,</span>    <span class="c1"># the amount of width reserved for space between subplots,</span>
+                                   <span class="c1"># expressed as a fraction of the average axis width</span>
+    <span class="s1">&#39;figure.subplot.hspace&#39;</span><span class="p">:</span> <span class="mf">0.2</span><span class="p">,</span>    <span class="c1"># the amount of height reserved for space between subplots,</span>
+                               <span class="c1"># expressed as a fraction of the average axis height</span>
+<span class="p">}</span>
+<span class="n">mpl</span><span class="o">.</span><span class="n">rcParams</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<section id="Load-events-and-plot-light-curve">
+<h1>Load events and plot light curve<a class="headerlink" href="#Load-events-and-plot-light-curve" title="Permalink to this heading">¶</a></h1>
+<p>Let us take a look at the light curve. We load the NICER event list into a <code class="docutils literal notranslate"><span class="pre">stingray.EventList</span></code> object, and create a <code class="docutils literal notranslate"><span class="pre">stingray.Lightcurve</span></code> from it.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">fname</span> <span class="o">=</span> <span class="s2">&quot;ni1200120106_0mpu7_cl_bary.evt.gz&quot;</span>
+<span class="n">events</span> <span class="o">=</span> <span class="n">EventList</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">fname</span><span class="p">,</span> <span class="s2">&quot;hea&quot;</span><span class="p">)</span>
+<span class="n">events</span><span class="o">.</span><span class="n">fname</span> <span class="o">=</span> <span class="n">fname</span>
+<br/><br/></pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+/home/pupperemeritus/anaconda3/lib/python3.9/site-packages/stingray/io.py:235: UserWarning: Column energy not found
+  warnings.warn(&#39;Column &#39; + a + &#39; not found&#39;)
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Create light curve and apply GTIs</span>
+<span class="n">lc_raw</span> <span class="o">=</span> <span class="n">events</span><span class="o">.</span><span class="n">to_lc</span><span class="p">(</span><span class="n">dt</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+<span class="n">lc_raw</span><span class="o">.</span><span class="n">apply_gtis</span><span class="p">()</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">lc_raw</span><span class="o">.</span><span class="n">time</span><span class="p">,</span> <span class="n">lc_raw</span><span class="o">.</span><span class="n">counts</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;k&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s2">&quot;Light curve&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Time (s from </span><span class="si">{</span><span class="n">events</span><span class="o">.</span><span class="n">mjdref</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Counts/bin&quot;</span><span class="p">)</span>
+<br/></pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Text(0, 0.5, &#39;Counts/bin&#39;)
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../../_images/notebooks_Spectral_Timing_Spectral_Timing_Exploration_4_1.png" src="../../_images/notebooks_Spectral_Timing_Spectral_Timing_Exploration_4_1.png" />
+</div>
+</div>
+<p>The light curve seems reasonably clean, with no need for further cleaning. Otherwise, we would have to filter out, e.g. flares or intervals with zero counts, doing something along the lines of:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>new_gti = create_gti_from_condition(lc_raw.time, lc_raw.counts &gt; 0, safe_interval=1)
+lc = copy.deepcopy(lc_raw)
+lc.gti = new_gti
+lc.apply_gtis()
+
+plt.figure()
+plt.plot(lc_raw.time, lc_raw.counts, color=&quot;grey&quot;, alpha=0.5, label=&quot;Raw&quot;)
+plt.plot(lc.time, lc.counts, color=&quot;k&quot;, label=&quot;Cleaned&quot;)
+plt.title(&quot;Light curve&quot;)
+plt.xlabel(f&quot;Time (s from {events.mjdref})&quot;)
+plt.ylabel(f&quot;Counts/bin&quot;)
+plt.legend();
+
+events.gti = new_gti
+</pre></div>
+</div>
+</section>
+<section id="Calculate-periodogram-and-cross-spectrum">
+<h1>Calculate periodogram and cross spectrum<a class="headerlink" href="#Calculate-periodogram-and-cross-spectrum" title="Permalink to this heading">¶</a></h1>
+<p>Let us now take a look at the periodogram and the cross spectrum. The periodogram will be obtained with Bartlett’s method: splitting the light curve into equal-length segments, calculating the periodogram in each, and then averaging them into the final periodogram.</p>
+<p>We will use the fractional rms normalization (sometimes referred to as the <em>Belloni</em>, or <em>Miyamoto</em>, normalization, from the papers <a class="reference external" href="https://ui.adsabs.harvard.edu/abs/1990A%26A...230..103B/abstract">Belloni &amp; Hasinger 1990</a>, <a class="reference external" href="https://ui.adsabs.harvard.edu/abs/1992ApJ...391L..21M/abstract">Miyamoto et al. 1992</a>). The background contribution is negligible and will be ignored.</p>
+<p>Note: since the fractional rms normalization uses the mean count rate, the final result changes slightly if the normalization is applied in the single periodograms from each light curve segment, with the count rate of each chunk, or on the averaged periodogram, using the average count rate of the full light curve. We choose the second option (note the <code class="docutils literal notranslate"><span class="pre">use_common_mean=True</span></code>).</p>
+<p>We will first plot the periodogram as is, in units of <span class="math notranslate nohighlight">\((\mathrm{rms/mean)^2\,Hz^{-1}}\)</span>.</p>
+<p>Then, from the periodogram, we will subtract the theoretical Poisson noise level of <span class="math notranslate nohighlight">\(2/\mu\)</span>, where <span class="math notranslate nohighlight">\(\mu\)</span> is the mean count rate in the observation, and we will multiply the powers by the frequency, to have the periodogram in units of <span class="math notranslate nohighlight">\((\mathrm{rms/mean)^2}\)</span></p>
+<p>In both cases, we will rebin the periodogram geometrically, averaging more bins at larger frequencies, in order to lower the noise level.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Calculate the periodogram in fractional rms normalization.</span>
+<span class="c1"># Length in seconds of each light curve segment</span>
+<span class="n">segment_size</span><span class="o">=</span><span class="mi">50</span>
+<span class="c1"># Sampling time of the light curve: 1ms, this will give a Nyquist</span>
+<span class="c1"># frequency of 0.5 / dt = 500 Hz.</span>
+<span class="n">dt</span><span class="o">=</span><span class="mf">0.001</span>
+<span class="c1"># Fractional rms normalization</span>
+<span class="n">norm</span><span class="o">=</span><span class="s2">&quot;frac&quot;</span>
+
+<span class="n">pds</span> <span class="o">=</span> <span class="n">AveragedPowerspectrum</span><span class="o">.</span><span class="n">from_events</span><span class="p">(</span>
+    <span class="n">events</span><span class="p">,</span> <span class="n">segment_size</span><span class="o">=</span><span class="n">segment_size</span><span class="p">,</span> <span class="n">dt</span><span class="o">=</span><span class="n">dt</span><span class="p">,</span>
+    <span class="n">norm</span><span class="o">=</span><span class="n">norm</span><span class="p">,</span> <span class="n">use_common_mean</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+<span class="c1"># Calculate the mean count rate</span>
+<span class="n">ctrate</span> <span class="o">=</span> <span class="n">get_average_ctrate</span><span class="p">(</span><span class="n">events</span><span class="o">.</span><span class="n">time</span><span class="p">,</span> <span class="n">events</span><span class="o">.</span><span class="n">gti</span><span class="p">,</span> <span class="n">segment_size</span><span class="p">)</span>
+<span class="c1"># Calculate the Poisson noise level</span>
+<span class="n">noise</span> <span class="o">=</span> <span class="n">poisson_level</span><span class="p">(</span><span class="n">norm</span><span class="p">,</span> <span class="n">meanrate</span><span class="o">=</span><span class="n">ctrate</span><span class="p">)</span>
+
+<span class="c1"># Rebin the periodogam</span>
+<span class="n">pds_reb</span> <span class="o">=</span> <span class="n">pds</span><span class="o">.</span><span class="n">rebin_log</span><span class="p">(</span><span class="mf">0.02</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+65it [00:00, 65.69it/s]
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">pds</span><span class="o">.</span><span class="n">freq</span><span class="p">,</span> <span class="n">pds</span><span class="o">.</span><span class="n">power</span><span class="p">,</span> <span class="n">drawstyle</span><span class="o">=</span><span class="s2">&quot;steps-mid&quot;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;grey&quot;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;PDS&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">pds_reb</span><span class="o">.</span><span class="n">freq</span><span class="p">,</span> <span class="n">pds_reb</span><span class="o">.</span><span class="n">power</span><span class="p">,</span> <span class="n">drawstyle</span><span class="o">=</span><span class="s2">&quot;steps-mid&quot;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;k&quot;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;Rebinned PDS&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">axhline</span><span class="p">(</span><span class="n">noise</span><span class="p">,</span> <span class="n">ls</span><span class="o">=</span><span class="s2">&quot;:&quot;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;Poisson noise level&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">loglog</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">&quot;Frequency (Hz)&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;$\mathrm{(rms / mean)^2 Hz^{-1}}$&quot;</span><span class="p">);</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">pds</span><span class="o">.</span><span class="n">freq</span><span class="p">,</span> <span class="p">(</span><span class="n">pds</span><span class="o">.</span><span class="n">power</span> <span class="o">-</span> <span class="n">noise</span><span class="p">)</span> <span class="o">*</span> <span class="n">pds</span><span class="o">.</span><span class="n">freq</span><span class="p">,</span> <span class="n">drawstyle</span><span class="o">=</span><span class="s2">&quot;steps-mid&quot;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;grey&quot;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;PDS&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">pds_reb</span><span class="o">.</span><span class="n">freq</span><span class="p">,</span> <span class="p">(</span><span class="n">pds_reb</span><span class="o">.</span><span class="n">power</span> <span class="o">-</span> <span class="n">noise</span><span class="p">)</span> <span class="o">*</span> <span class="n">pds_reb</span><span class="o">.</span><span class="n">freq</span><span class="p">,</span> <span class="n">drawstyle</span><span class="o">=</span><span class="s2">&quot;steps-mid&quot;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;k&quot;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;Rebinned PDS&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">loglog</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">&quot;Frequency (Hz)&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;$\mathrm{(rms / mean)^2}$&quot;</span><span class="p">);</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">();</span>
+<br/></pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../../_images/notebooks_Spectral_Timing_Spectral_Timing_Exploration_8_0.png" src="../../_images/notebooks_Spectral_Timing_Spectral_Timing_Exploration_8_0.png" />
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../../_images/notebooks_Spectral_Timing_Spectral_Timing_Exploration_8_1.png" src="../../_images/notebooks_Spectral_Timing_Spectral_Timing_Exploration_8_1.png" />
+</div>
+</div>
+<p>We will now do the same with the cross spectrum between the bands 0.3–5 keV and 5–12 keV.</p>
+<p>In this case, there is no need to subtract the Poisson noise level, as it is zero in the cross spectrum, provided that the energy bands do not overlap.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">ref_band</span> <span class="o">=</span> <span class="p">[</span><span class="mf">1.5</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span>
+<span class="n">sub_band</span> <span class="o">=</span> <span class="p">[</span><span class="mf">0.5</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span>
+<span class="n">events_ref</span> <span class="o">=</span> <span class="n">events</span><span class="o">.</span><span class="n">filter_energy_range</span><span class="p">(</span><span class="n">ref_band</span><span class="p">)</span>
+<span class="n">events_sub</span> <span class="o">=</span> <span class="n">events</span><span class="o">.</span><span class="n">filter_energy_range</span><span class="p">(</span><span class="n">sub_band</span><span class="p">)</span>
+
+<span class="n">cs</span> <span class="o">=</span> <span class="n">AveragedCrossspectrum</span><span class="o">.</span><span class="n">from_events</span><span class="p">(</span>
+    <span class="n">events_sub</span><span class="p">,</span> <span class="n">events_ref</span><span class="p">,</span> <span class="n">segment_size</span><span class="o">=</span><span class="n">segment_size</span><span class="p">,</span>
+    <span class="n">dt</span><span class="o">=</span><span class="n">dt</span><span class="p">,</span> <span class="n">norm</span><span class="o">=</span><span class="n">norm</span><span class="p">)</span>
+<span class="n">cs_reb</span> <span class="o">=</span> <span class="n">cs</span><span class="o">.</span><span class="n">rebin_log</span><span class="p">(</span><span class="mf">0.02</span><span class="p">)</span>
+<br/></pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+65it [00:00, 112.32it/s]
+/home/pupperemeritus/anaconda3/lib/python3.9/site-packages/stingray/fourier.py:720: RuntimeWarning: invalid value encountered in sqrt
+  dRe = dIm = dG = np.sqrt(power_over_2n * (seg_power - frac))
+/home/pupperemeritus/anaconda3/lib/python3.9/site-packages/stingray/fourier.py:722: RuntimeWarning: invalid value encountered in sqrt
+  dphi = np.sqrt(power_over_2n * (seg_power / (Gsq - bsq) -
+/home/pupperemeritus/anaconda3/lib/python3.9/site-packages/stingray/crossspectrum.py:2761: UserWarning: Some error bars in the Averaged Crossspectrum are invalid.Defaulting to sqrt(2 / M) in Leahy norm, rescaled to the appropriate norm.
+  warnings.warn(
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">cs</span><span class="o">.</span><span class="n">freq</span><span class="p">,</span> <span class="n">cs</span><span class="o">.</span><span class="n">power</span> <span class="o">*</span> <span class="n">cs</span><span class="o">.</span><span class="n">freq</span><span class="p">,</span> <span class="n">drawstyle</span><span class="o">=</span><span class="s2">&quot;steps-mid&quot;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;grey&quot;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.5</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">cs_reb</span><span class="o">.</span><span class="n">freq</span><span class="p">,</span> <span class="n">cs_reb</span><span class="o">.</span><span class="n">power</span> <span class="o">*</span> <span class="n">cs_reb</span><span class="o">.</span><span class="n">freq</span><span class="p">,</span> <span class="n">drawstyle</span><span class="o">=</span><span class="s2">&quot;steps-mid&quot;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;k&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">loglog</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">&quot;Frequency (Hz)&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;$\mathrm{(rms / mean)^2}$&quot;</span><span class="p">);</span>
+<br/></pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+/home/pupperemeritus/.local/lib/python3.9/site-packages/matplotlib/cbook/__init__.py:1333: ComplexWarning: Casting complex values to real discards the imaginary part
+  return np.asarray(x, float)
+/home/pupperemeritus/.local/lib/python3.9/site-packages/matplotlib/cbook/__init__.py:1333: ComplexWarning: Casting complex values to real discards the imaginary part
+  return np.asarray(x, float)
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../../_images/notebooks_Spectral_Timing_Spectral_Timing_Exploration_11_1.png" src="../../_images/notebooks_Spectral_Timing_Spectral_Timing_Exploration_11_1.png" />
+</div>
+</div>
+</section>
+<section id="Periodogram-modeling">
+<h1>Periodogram modeling<a class="headerlink" href="#Periodogram-modeling" title="Permalink to this heading">¶</a></h1>
+<p>This periodogram has a number of broad components, that can be approximated by Lorentzian curves. Let us try to model it.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">pds</span> <span class="o">=</span> <span class="n">AveragedPowerspectrum</span><span class="o">.</span><span class="n">from_events</span><span class="p">(</span><span class="n">events</span><span class="p">,</span> <span class="n">segment_size</span><span class="o">=</span><span class="n">segment_size</span><span class="p">,</span> <span class="n">dt</span><span class="o">=</span><span class="n">dt</span><span class="p">,</span> <span class="n">norm</span><span class="o">=</span><span class="s2">&quot;leahy&quot;</span><span class="p">)</span>
+<span class="n">pds_reb</span> <span class="o">=</span> <span class="n">pds</span><span class="o">.</span><span class="n">rebin_log</span><span class="p">(</span><span class="mf">0.02</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+65it [00:00, 72.65it/s]
+</pre></div></div>
+</div>
+<p>We will model the periodogram using the maximum likelihood estimation from <a class="reference external" href="https://ui.adsabs.harvard.edu/abs/2012ApJ...746..131B/abstract">Barret &amp; Vaughan 2012</a>.</p>
+<p>For periodograms averaged over <span class="math notranslate nohighlight">\(L\)</span> independent segments and <span class="math notranslate nohighlight">\(M\)</span> independent neighbouring frequencies,</p>
+<div class="math notranslate nohighlight">
+\[\mathcal{L}_\mathrm{avg}(\theta) = -2ML \sum_{j=1}^{N/2} \left\{ \frac{P_j}{S_j(\theta)} + \ln{S_j(\theta) + \left( \frac{1}{ML} - 1 \right)\ln{P_j} + c(2ML) }\right\} \; ,\]</div>
+<p>where <span class="math notranslate nohighlight">\(\theta\)</span> are the model parameters, <span class="math notranslate nohighlight">\(P_j\)</span> are the periodogram values, <span class="math notranslate nohighlight">\(S_j\)</span> the model of the underlying signal, <span class="math notranslate nohighlight">\(c(2ML)\)</span> is a factor independent of <span class="math notranslate nohighlight">\(P_j\)</span> or <span class="math notranslate nohighlight">\(S_j\)</span>, and thus unimportant to the parameter estimation problem considered here (it only scales the likelihood, but does not change its shape).</p>
+<p>For non-uniformly binned periodograms, the factor <span class="math notranslate nohighlight">\(ML\)</span> should go inside the sum:</p>
+<div class="math notranslate nohighlight">
+\[\mathcal{L}_\mathrm{avg}(\theta) = -2\sum_{j=1}^{N/2} M_j L_j \left\{ \frac{P_j}{S_j(\theta)} + \ln{S_j(\theta) + \left( \frac{1}{ M_j L_j } - 1 \right)\ln{P_j} + c(2 M_j L_j ) }\right\}\]</div>
+<p>This is the formula that we will apply here.</p>
+<p>Let us now create an initial model that more or less describes the periodogram</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">fit_model</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">Lorentz1D</span><span class="p">(</span><span class="n">x_0</span><span class="o">=</span><span class="mf">0.04</span><span class="p">,</span> <span class="n">fwhm</span><span class="o">=</span><span class="mf">0.15</span><span class="p">,</span> <span class="n">amplitude</span><span class="o">=</span><span class="mi">7000</span><span class="p">)</span> <span class="o">+</span> \
+    <span class="n">models</span><span class="o">.</span><span class="n">Lorentz1D</span><span class="p">(</span><span class="n">x_0</span><span class="o">=</span><span class="mf">0.2</span><span class="p">,</span> <span class="n">fwhm</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">amplitude</span><span class="o">=</span><span class="mi">300</span><span class="p">)</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">pds_reb</span><span class="o">.</span><span class="n">freq</span><span class="p">,</span> <span class="p">(</span><span class="n">pds_reb</span><span class="o">.</span><span class="n">power</span> <span class="o">-</span> <span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">pds_reb</span><span class="o">.</span><span class="n">freq</span><span class="p">,</span> <span class="n">drawstyle</span><span class="o">=</span><span class="s2">&quot;steps-mid&quot;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;k&quot;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;Rebinned PDS&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">pds</span><span class="o">.</span><span class="n">freq</span><span class="p">,</span> <span class="n">fit_model</span><span class="p">(</span><span class="n">pds</span><span class="o">.</span><span class="n">freq</span><span class="p">)</span> <span class="o">*</span> <span class="n">pds</span><span class="o">.</span><span class="n">freq</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;r&quot;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;Starting Model&quot;</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">mod</span> <span class="ow">in</span> <span class="n">fit_model</span><span class="p">:</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">pds</span><span class="o">.</span><span class="n">freq</span><span class="p">,</span> <span class="n">mod</span><span class="p">(</span><span class="n">pds</span><span class="o">.</span><span class="n">freq</span><span class="p">)</span> <span class="o">*</span> <span class="n">pds</span><span class="o">.</span><span class="n">freq</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;r&quot;</span><span class="p">,</span> <span class="n">ls</span><span class="o">=</span><span class="s2">&quot;:&quot;</span><span class="p">)</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">semilogx</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlim</span><span class="p">([</span><span class="n">pds</span><span class="o">.</span><span class="n">freq</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">pds</span><span class="o">.</span><span class="n">freq</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]])</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">&quot;Frequency (Hz)&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;$\mathrm{(rms / mean)^2}$&quot;</span><span class="p">);</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">();</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylim</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="kc">None</span><span class="p">])</span>
+<br/></pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+(0.0, 488.21599547079995)
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../../_images/notebooks_Spectral_Timing_Spectral_Timing_Exploration_15_1.png" src="../../_images/notebooks_Spectral_Timing_Spectral_Timing_Exploration_15_1.png" />
+</div>
+</div>
+<p>We will now add a constant at the Poisson noise level (2 in Leahy normalization) and fit using the Maximum Likelihood estimation in <code class="docutils literal notranslate"><span class="pre">stingray</span></code></p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">stingray.modeling</span> <span class="kn">import</span> <span class="n">PSDParEst</span>
+<span class="n">fit_model</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">Const1D</span><span class="p">(</span><span class="n">amplitude</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span> <span class="o">+</span> <span class="n">fit_model</span>
+
+<span class="n">parest</span> <span class="o">=</span> <span class="n">PSDParEst</span><span class="p">(</span><span class="n">pds_reb</span><span class="p">,</span> <span class="n">fitmethod</span><span class="o">=</span><span class="s2">&quot;L-BFGS-B&quot;</span><span class="p">,</span> <span class="n">max_post</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="n">loglike</span> <span class="o">=</span> <span class="n">PSDLogLikelihood</span><span class="p">(</span>
+    <span class="n">pds_reb</span><span class="o">.</span><span class="n">freq</span><span class="p">,</span> <span class="n">pds_reb</span><span class="o">.</span><span class="n">power</span><span class="p">,</span> <span class="n">fit_model</span><span class="p">,</span> <span class="n">m</span><span class="o">=</span><span class="n">pds_reb</span><span class="o">.</span><span class="n">m</span><span class="p">)</span>
+
+<span class="n">res</span> <span class="o">=</span> <span class="n">parest</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">loglike</span><span class="p">,</span> <span class="n">fit_model</span><span class="o">.</span><span class="n">parameters</span><span class="p">)</span>
+
+<span class="n">fitmod</span> <span class="o">=</span> <span class="n">res</span><span class="o">.</span><span class="n">model</span>
+
+<span class="c1"># The Poisson noise level was the first parameter.</span>
+<span class="n">poisson</span> <span class="o">=</span> <span class="n">fitmod</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">res</span><span class="o">.</span><span class="n">p_opt</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+[1.95227938e+00 6.97518942e+03 4.11961192e-02 1.42093997e-01
+ 2.98070633e+02 4.06300000e-01 2.65743398e+00]
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+<span class="n">gs</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">GridSpec</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">hspace</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+<span class="n">ax0</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplot</span><span class="p">(</span><span class="n">gs</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+<span class="n">ax1</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplot</span><span class="p">(</span><span class="n">gs</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">sharex</span><span class="o">=</span><span class="n">ax0</span><span class="p">)</span>
+
+<span class="n">ax0</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">pds_reb</span><span class="o">.</span><span class="n">freq</span><span class="p">,</span> <span class="p">(</span><span class="n">pds_reb</span><span class="o">.</span><span class="n">power</span> <span class="o">-</span> <span class="n">poisson</span><span class="p">)</span> <span class="o">*</span> <span class="n">pds_reb</span><span class="o">.</span><span class="n">freq</span><span class="p">,</span> <span class="n">drawstyle</span><span class="o">=</span><span class="s2">&quot;steps-mid&quot;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;k&quot;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;Rebinned PDS&quot;</span><span class="p">)</span>
+<span class="n">ax0</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">pds</span><span class="o">.</span><span class="n">freq</span><span class="p">,</span> <span class="p">(</span><span class="n">fitmod</span><span class="p">(</span><span class="n">pds</span><span class="o">.</span><span class="n">freq</span><span class="p">)</span> <span class="o">-</span> <span class="n">poisson</span><span class="p">)</span> <span class="o">*</span> <span class="n">pds</span><span class="o">.</span><span class="n">freq</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;r&quot;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;Best Model&quot;</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">mod</span> <span class="ow">in</span> <span class="n">fitmod</span><span class="p">[</span><span class="mi">1</span><span class="p">:]:</span>
+    <span class="n">ax0</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">pds</span><span class="o">.</span><span class="n">freq</span><span class="p">,</span> <span class="n">mod</span><span class="p">(</span><span class="n">pds</span><span class="o">.</span><span class="n">freq</span><span class="p">)</span> <span class="o">*</span> <span class="n">pds</span><span class="o">.</span><span class="n">freq</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;r&quot;</span><span class="p">,</span> <span class="n">ls</span><span class="o">=</span><span class="s2">&quot;:&quot;</span><span class="p">)</span>
+
+<span class="n">ax0</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&quot;Frequency (Hz)&quot;</span><span class="p">)</span>
+<span class="n">ax0</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;$\mathrm{(rms / mean)^2}$&quot;</span><span class="p">);</span>
+<span class="n">ax0</span><span class="o">.</span><span class="n">legend</span><span class="p">();</span>
+
+<span class="n">ax1</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">pds_reb</span><span class="o">.</span><span class="n">freq</span><span class="p">,</span> <span class="p">(</span><span class="n">pds_reb</span><span class="o">.</span><span class="n">power</span> <span class="o">-</span> <span class="n">poisson</span><span class="p">)</span> <span class="o">*</span> <span class="n">pds_reb</span><span class="o">.</span><span class="n">freq</span><span class="p">,</span> <span class="n">drawstyle</span><span class="o">=</span><span class="s2">&quot;steps-mid&quot;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;k&quot;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;Rebinned PDS&quot;</span><span class="p">)</span>
+<span class="n">ax1</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">pds</span><span class="o">.</span><span class="n">freq</span><span class="p">,</span> <span class="p">(</span><span class="n">fitmod</span><span class="p">(</span><span class="n">pds</span><span class="o">.</span><span class="n">freq</span><span class="p">)</span> <span class="o">-</span> <span class="n">poisson</span><span class="p">)</span> <span class="o">*</span> <span class="n">pds</span><span class="o">.</span><span class="n">freq</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;r&quot;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;Best Model&quot;</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">mod</span> <span class="ow">in</span> <span class="n">fitmod</span><span class="p">[</span><span class="mi">1</span><span class="p">:]:</span>
+    <span class="n">ax1</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">pds</span><span class="o">.</span><span class="n">freq</span><span class="p">,</span> <span class="n">mod</span><span class="p">(</span><span class="n">pds</span><span class="o">.</span><span class="n">freq</span><span class="p">)</span> <span class="o">*</span> <span class="n">pds</span><span class="o">.</span><span class="n">freq</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;r&quot;</span><span class="p">,</span> <span class="n">ls</span><span class="o">=</span><span class="s2">&quot;:&quot;</span><span class="p">)</span>
+
+<span class="n">ax1</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&quot;Frequency (Hz)&quot;</span><span class="p">)</span>
+<span class="n">ax1</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;$\mathrm{(rms / mean)^2}$&quot;</span><span class="p">);</span>
+<span class="n">ax1</span><span class="o">.</span><span class="n">loglog</span><span class="p">()</span>
+<span class="n">ax1</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">([</span><span class="mf">1e-1</span><span class="p">,</span> <span class="kc">None</span><span class="p">]);</span>
+<span class="n">ax1</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">([</span><span class="n">pds</span><span class="o">.</span><span class="n">freq</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">pds</span><span class="o">.</span><span class="n">freq</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]]);</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../../_images/notebooks_Spectral_Timing_Spectral_Timing_Exploration_18_0.png" src="../../_images/notebooks_Spectral_Timing_Spectral_Timing_Exploration_18_0.png" />
+</div>
+</div>
+</section>
+<section id="Lags-and-coherence">
+<h1>Lags and coherence<a class="headerlink" href="#Lags-and-coherence" title="Permalink to this heading">¶</a></h1>
+<p>With the cross spectrum we can explore the time lags versus frequency</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Use shorter segments, rebin a little more heavily</span>
+<span class="n">cs</span> <span class="o">=</span> <span class="n">AveragedCrossspectrum</span><span class="o">.</span><span class="n">from_events</span><span class="p">(</span><span class="n">events_sub</span><span class="p">,</span> <span class="n">events_ref</span><span class="p">,</span> <span class="n">segment_size</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">dt</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span> <span class="n">norm</span><span class="o">=</span><span class="n">norm</span><span class="p">)</span>
+<span class="n">cs_reb</span> <span class="o">=</span> <span class="n">cs</span><span class="o">.</span><span class="n">rebin_log</span><span class="p">(</span><span class="mf">0.4</span><span class="p">)</span>
+
+<span class="n">lag</span><span class="p">,</span> <span class="n">lag_e</span> <span class="o">=</span> <span class="n">cs_reb</span><span class="o">.</span><span class="n">time_lag</span><span class="p">()</span>
+<br/><br/></pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+2627it [00:00, 2906.20it/s]
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[13]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">errorbar</span><span class="p">(</span><span class="n">cs_reb</span><span class="o">.</span><span class="n">freq</span><span class="p">,</span> <span class="n">lag</span><span class="p">,</span> <span class="n">yerr</span><span class="o">=</span><span class="n">lag_e</span><span class="p">,</span> <span class="n">fmt</span><span class="o">=</span><span class="s2">&quot;o&quot;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;k&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">&quot;Frequency (Hz)&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Time lag (</span><span class="si">{</span><span class="n">sub_band</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">:</span><span class="s2">g</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">sub_band</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="si">:</span><span class="s2">g</span><span class="si">}</span><span class="s2"> keV vs </span><span class="si">{</span><span class="n">ref_band</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">:</span><span class="s2">g</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">ref_band</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="si">:</span><span class="s2">g</span><span class="si">}</span><span class="s2"> keV, in seconds)&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">axhline</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">ls</span><span class="o">=</span><span class="s2">&quot;--&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">semilogx</span><span class="p">()</span>
+<span class="c1"># plt.ylim([1e-4, None]);</span>
+<span class="c1"># plt.xlim([None, 80])</span>
+<span class="c1"># plt.legend();</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[13]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+[]
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../../_images/notebooks_Spectral_Timing_Spectral_Timing_Exploration_21_1.png" src="../../_images/notebooks_Spectral_Timing_Spectral_Timing_Exploration_21_1.png" />
+</div>
+</div>
+<p>Another interesting thing to measure is the coherence at different frequencies</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">coh</span><span class="p">,</span> <span class="n">coh_e</span> <span class="o">=</span> <span class="n">cs_reb</span><span class="o">.</span><span class="n">coherence</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">errorbar</span><span class="p">(</span><span class="n">cs_reb</span><span class="o">.</span><span class="n">freq</span><span class="p">,</span> <span class="n">coh</span><span class="p">,</span> <span class="n">yerr</span><span class="o">=</span><span class="n">coh_e</span><span class="p">,</span> <span class="n">fmt</span><span class="o">=</span><span class="s2">&quot;o&quot;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;k&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">&quot;Frequency (Hz)&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Coherence (</span><span class="si">{</span><span class="n">sub_band</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">:</span><span class="s2">g</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">sub_band</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="si">:</span><span class="s2">g</span><span class="si">}</span><span class="s2"> keV vs </span><span class="si">{</span><span class="n">ref_band</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">:</span><span class="s2">g</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">ref_band</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="si">:</span><span class="s2">g</span><span class="si">}</span><span class="s2"> keV)&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">axhline</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">ls</span><span class="o">=</span><span class="s2">&quot;--&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">loglog</span><span class="p">()</span>
+<span class="c1"># plt.ylim([1e-4, None]);</span>
+<span class="c1"># plt.xlim([None, 80])</span>
+<span class="c1"># plt.legend();</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+[]
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../../_images/notebooks_Spectral_Timing_Spectral_Timing_Exploration_23_1.png" src="../../_images/notebooks_Spectral_Timing_Spectral_Timing_Exploration_23_1.png" />
+</div>
+</div>
+<section id="Spectral-timing">
+<h2>Spectral timing<a class="headerlink" href="#Spectral-timing" title="Permalink to this heading">¶</a></h2>
+<p>Now let us explore the spectral timing properties of this observation, with no physical interpretation, just for the sake of data exploration.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[15]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">stingray.varenergyspectrum</span> <span class="kn">import</span> <span class="n">CountSpectrum</span><span class="p">,</span> <span class="n">CovarianceSpectrum</span><span class="p">,</span> <span class="n">RmsSpectrum</span><span class="p">,</span> <span class="n">LagSpectrum</span>
+</pre></div>
+</div>
+</div>
+<p>Let us start with the lag spectrum with respect to energy, in different frequency bands. This might be confusing for people coming from other wavelengths, so let us specify that</p>
+<ul class="simple">
+<li><p>“frequency” refers to the frequency of the variability.</p></li>
+<li><p>“energy” refers to the photon energy.</p></li>
+</ul>
+<p>The photons at 0.3-12 keV are modulated by oscillations and other stochastic noise up to ~100 Hz (see section above). As an example, we will now analyze the spectral timing properties using the variability up to 1 Hz and between 4 and 10 Hz.</p>
+<p>From Kara+2019, figure 3</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[16]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">energy_spec</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">geomspace</span><span class="p">(</span><span class="mf">0.5</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">41</span><span class="p">)</span>
+<span class="n">segment_size</span> <span class="o">=</span> <span class="mi">10</span>
+<span class="n">bin_time</span> <span class="o">=</span> <span class="mf">0.001</span>
+<span class="n">freq_interval</span> <span class="o">=</span> <span class="p">[</span><span class="mi">3</span><span class="p">,</span> <span class="mi">30</span><span class="p">]</span>
+<span class="n">ref_band</span><span class="o">=</span><span class="p">[</span><span class="mf">0.5</span><span class="p">,</span> <span class="mi">10</span><span class="p">]</span>
+
+<span class="c1"># If not specified, the reference energy band is the whole band.</span>
+
+<span class="n">lagspec_3_30</span> <span class="o">=</span> <span class="n">LagSpectrum</span><span class="p">(</span><span class="n">events</span><span class="p">,</span> <span class="n">freq_interval</span><span class="o">=</span><span class="n">freq_interval</span><span class="p">,</span>
+                          <span class="n">segment_size</span><span class="o">=</span><span class="n">segment_size</span><span class="p">,</span> <span class="n">bin_time</span><span class="o">=</span><span class="n">bin_time</span><span class="p">,</span>
+                          <span class="n">energy_spec</span><span class="o">=</span><span class="n">energy_spec</span><span class="p">,</span> <span class="n">ref_band</span><span class="o">=</span><span class="n">ref_band</span><span class="p">)</span>
+<span class="n">energies</span> <span class="o">=</span> <span class="n">lagspec_3_30</span><span class="o">.</span><span class="n">energy</span>
+<br/><br/></pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+100%|█████████████████████████████████████████████████████████████████████████████████████████| 40/40 [00:57&lt;00:00,  1.44s/it]
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[17]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">errorbar</span><span class="p">(</span><span class="n">energies</span><span class="p">,</span> <span class="n">lagspec_3_30</span><span class="o">.</span><span class="n">spectrum</span> <span class="o">*</span> <span class="mf">1e4</span><span class="p">,</span> <span class="n">yerr</span><span class="o">=</span><span class="n">lagspec_3_30</span><span class="o">.</span><span class="n">spectrum_error</span> <span class="o">*</span> <span class="mf">1e4</span><span class="p">,</span> <span class="n">fmt</span><span class="o">=</span><span class="s1">&#39;o&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;3-30 Hz&quot;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;k&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">&quot;Energy (keV)&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">&quot;Time Lag ($10^{-4}$ s)&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlim</span><span class="p">([</span><span class="mf">0.5</span><span class="p">,</span> <span class="mi">10</span><span class="p">])</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">semilogx</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[17]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+[]
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../../_images/notebooks_Spectral_Timing_Spectral_Timing_Exploration_30_1.png" src="../../_images/notebooks_Spectral_Timing_Spectral_Timing_Exploration_30_1.png" />
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[18]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">lagspec_01_1</span> <span class="o">=</span> <span class="n">LagSpectrum</span><span class="p">(</span><span class="n">events</span><span class="p">,</span> <span class="n">freq_interval</span><span class="o">=</span><span class="p">[</span><span class="mf">0.1</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span>
+                           <span class="n">segment_size</span><span class="o">=</span><span class="n">segment_size</span><span class="p">,</span> <span class="n">bin_time</span><span class="o">=</span><span class="n">bin_time</span><span class="p">,</span>
+                           <span class="n">energy_spec</span><span class="o">=</span><span class="n">energy_spec</span><span class="p">,</span> <span class="n">ref_band</span><span class="o">=</span><span class="n">ref_band</span><span class="p">)</span>
+<span class="n">energies</span> <span class="o">=</span> <span class="n">lagspec_01_1</span><span class="o">.</span><span class="n">energy</span>
+<span class="n">energies_err</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">lagspec_01_1</span><span class="o">.</span><span class="n">energy_intervals</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span> <span class="o">/</span> <span class="mi">2</span>
+<br/><br/></pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+100%|█████████████████████████████████████████████████████████████████████████████████████████| 40/40 [00:54&lt;00:00,  1.37s/it]
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[19]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">errorbar</span><span class="p">(</span><span class="n">energies</span><span class="p">,</span> <span class="n">lagspec_01_1</span><span class="o">.</span><span class="n">spectrum</span><span class="p">,</span> <span class="n">xerr</span><span class="o">=</span><span class="n">energies_err</span><span class="p">,</span> <span class="n">yerr</span><span class="o">=</span><span class="n">lagspec_01_1</span><span class="o">.</span><span class="n">spectrum_error</span><span class="p">,</span> <span class="n">fmt</span><span class="o">=</span><span class="s1">&#39;o&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;0.1-1 Hz&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">errorbar</span><span class="p">(</span><span class="n">energies</span><span class="p">,</span> <span class="n">lagspec_3_30</span><span class="o">.</span><span class="n">spectrum</span><span class="p">,</span> <span class="n">xerr</span><span class="o">=</span><span class="n">energies_err</span><span class="p">,</span> <span class="n">yerr</span><span class="o">=</span><span class="n">lagspec_3_30</span><span class="o">.</span><span class="n">spectrum_error</span><span class="p">,</span> <span class="n">fmt</span><span class="o">=</span><span class="s1">&#39;o&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;3-30 Hz&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">semilogx</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">&quot;Energy (keV)&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">&quot;Time lag (s)&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[19]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Text(0, 0.5, &#39;Time lag (s)&#39;)
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../../_images/notebooks_Spectral_Timing_Spectral_Timing_Exploration_32_1.png" src="../../_images/notebooks_Spectral_Timing_Spectral_Timing_Exploration_32_1.png" />
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[20]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">freq_01_1</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="mf">0.1</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span> <span class="o">*</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span>
+<span class="n">freq_3_30</span> <span class="o">=</span> <span class="p">(</span><span class="mi">3</span> <span class="o">+</span> <span class="mi">30</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span> <span class="o">*</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">errorbar</span><span class="p">(</span><span class="n">energies</span><span class="p">,</span> <span class="n">lagspec_01_1</span><span class="o">.</span><span class="n">spectrum</span> <span class="o">*</span> <span class="n">freq_01_1</span> <span class="p">,</span> <span class="n">xerr</span><span class="o">=</span><span class="n">energies_err</span><span class="p">,</span> <span class="n">yerr</span><span class="o">=</span><span class="n">lagspec_01_1</span><span class="o">.</span><span class="n">spectrum_error</span> <span class="o">*</span> <span class="n">freq_01_1</span><span class="p">,</span> <span class="n">fmt</span><span class="o">=</span><span class="s1">&#39;o&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;0.1-1 Hz&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">errorbar</span><span class="p">(</span><span class="n">energies</span><span class="p">,</span> <span class="n">lagspec_3_30</span><span class="o">.</span><span class="n">spectrum</span> <span class="o">*</span> <span class="n">freq_3_30</span><span class="p">,</span> <span class="n">xerr</span><span class="o">=</span><span class="n">energies_err</span><span class="p">,</span> <span class="n">yerr</span><span class="o">=</span><span class="n">lagspec_3_30</span><span class="o">.</span><span class="n">spectrum_error</span> <span class="o">*</span> <span class="n">freq_3_30</span><span class="p">,</span> <span class="n">fmt</span><span class="o">=</span><span class="s1">&#39;o&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;3-30 Hz&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">semilogx</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">&quot;Energy (keV)&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">&quot;Phase lag (rad)&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[20]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Text(0, 0.5, &#39;Phase lag (rad)&#39;)
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../../_images/notebooks_Spectral_Timing_Spectral_Timing_Exploration_33_1.png" src="../../_images/notebooks_Spectral_Timing_Spectral_Timing_Exploration_33_1.png" />
+</div>
+</div>
+<p>Interesting: the low-frequency variability has much longer time lags than the high-frequency variability, but the phase lags are on the same order of magnitude.</p>
+</section>
+</section>
+<section id="Covariance-and-RMS-spectrum">
+<h1>Covariance and RMS spectrum<a class="headerlink" href="#Covariance-and-RMS-spectrum" title="Permalink to this heading">¶</a></h1>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[21]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">covspec_3_30</span> <span class="o">=</span> <span class="n">CovarianceSpectrum</span><span class="p">(</span><span class="n">events</span><span class="p">,</span> <span class="n">freq_interval</span><span class="o">=</span><span class="p">[</span><span class="mi">3</span><span class="p">,</span> <span class="mi">30</span><span class="p">],</span>
+                                 <span class="n">segment_size</span><span class="o">=</span><span class="n">segment_size</span><span class="p">,</span> <span class="n">bin_time</span><span class="o">=</span><span class="n">bin_time</span><span class="p">,</span>
+                                 <span class="n">energy_spec</span><span class="o">=</span><span class="n">energy_spec</span><span class="p">,</span> <span class="n">norm</span><span class="o">=</span><span class="s2">&quot;abs&quot;</span><span class="p">,</span> <span class="n">ref_band</span><span class="o">=</span><span class="n">ref_band</span><span class="p">)</span>
+<span class="n">covspec_01_1</span> <span class="o">=</span> <span class="n">CovarianceSpectrum</span><span class="p">(</span><span class="n">events</span><span class="p">,</span> <span class="n">freq_interval</span><span class="o">=</span><span class="p">[</span><span class="mf">0.1</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span>
+                                  <span class="n">segment_size</span><span class="o">=</span><span class="n">segment_size</span><span class="p">,</span> <span class="n">bin_time</span><span class="o">=</span><span class="n">bin_time</span><span class="p">,</span>
+                                  <span class="n">energy_spec</span><span class="o">=</span><span class="n">energy_spec</span><span class="p">,</span> <span class="n">norm</span><span class="o">=</span><span class="s2">&quot;abs&quot;</span><span class="p">,</span> <span class="n">ref_band</span><span class="o">=</span><span class="n">ref_band</span><span class="p">)</span>
+<br/></pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+100%|█████████████████████████████████████████████████████████████████████████████████████████| 40/40 [00:55&lt;00:00,  1.40s/it]
+100%|█████████████████████████████████████████████████████████████████████████████████████████| 40/40 [00:55&lt;00:00,  1.40s/it]
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[22]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">errorbar</span><span class="p">(</span><span class="n">energies</span><span class="p">,</span> <span class="n">covspec_3_30</span><span class="o">.</span><span class="n">spectrum</span><span class="p">,</span>
+             <span class="n">xerr</span><span class="o">=</span><span class="n">energies_err</span><span class="p">,</span> <span class="n">yerr</span><span class="o">=</span><span class="n">covspec_3_30</span><span class="o">.</span><span class="n">spectrum_error</span><span class="p">,</span> <span class="n">fmt</span><span class="o">=</span><span class="s1">&#39;o&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;3-30 Hz&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">errorbar</span><span class="p">(</span><span class="n">energies</span><span class="p">,</span> <span class="n">covspec_01_1</span><span class="o">.</span><span class="n">spectrum</span><span class="p">,</span>
+             <span class="n">xerr</span><span class="o">=</span><span class="n">energies_err</span><span class="p">,</span> <span class="n">yerr</span><span class="o">=</span><span class="n">covspec_01_1</span><span class="o">.</span><span class="n">spectrum_error</span><span class="p">,</span> <span class="n">fmt</span><span class="o">=</span><span class="s1">&#39;o&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;0.1-1 Hz&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">semilogx</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">&quot;Energy (keV)&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">&quot;Absolute Covariance (counts / s)&quot;</span><span class="p">);</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../../_images/notebooks_Spectral_Timing_Spectral_Timing_Exploration_37_0.png" src="../../_images/notebooks_Spectral_Timing_Spectral_Timing_Exploration_37_0.png" />
+</div>
+</div>
+<p>This covariance, plotted this way, mostly tracks the number of counts in each energy bin. To get an unfolded covariance, we need to use the response of the instrument. Another way is to plot the fractional covariance, normalizing by the number of counts in each bin.</p>
+<p>To do this, we calculate the Count Spectrum and divide by it.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[23]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">countsp</span> <span class="o">=</span> <span class="n">CountSpectrum</span><span class="p">(</span><span class="n">events</span><span class="p">,</span> <span class="n">energy_spec</span><span class="o">=</span><span class="n">energy_spec</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+40it [00:08,  4.47it/s]
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[24]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">errorbar</span><span class="p">(</span><span class="n">energies</span><span class="p">,</span> <span class="n">covspec_3_30</span><span class="o">.</span><span class="n">spectrum</span> <span class="o">/</span> <span class="n">countsp</span><span class="o">.</span><span class="n">spectrum</span><span class="p">,</span>
+             <span class="n">xerr</span><span class="o">=</span><span class="n">energies_err</span><span class="p">,</span> <span class="n">yerr</span><span class="o">=</span><span class="n">covspec_3_30</span><span class="o">.</span><span class="n">spectrum_error</span> <span class="o">/</span> <span class="n">countsp</span><span class="o">.</span><span class="n">spectrum</span><span class="p">,</span> <span class="n">fmt</span><span class="o">=</span><span class="s1">&#39;o&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;3-30 Hz&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">errorbar</span><span class="p">(</span><span class="n">energies</span><span class="p">,</span> <span class="n">covspec_01_1</span><span class="o">.</span><span class="n">spectrum</span> <span class="o">/</span> <span class="n">countsp</span><span class="o">.</span><span class="n">spectrum</span><span class="p">,</span>
+             <span class="n">xerr</span><span class="o">=</span><span class="n">energies_err</span><span class="p">,</span> <span class="n">yerr</span><span class="o">=</span><span class="n">covspec_01_1</span><span class="o">.</span><span class="n">spectrum_error</span> <span class="o">/</span> <span class="n">countsp</span><span class="o">.</span><span class="n">spectrum</span><span class="p">,</span> <span class="n">fmt</span><span class="o">=</span><span class="s1">&#39;o&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;0.1-1 Hz&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">semilogx</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">&quot;Energy (keV)&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">&quot;Normalized Covariance (1 / s)&quot;</span><span class="p">);</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../../_images/notebooks_Spectral_Timing_Spectral_Timing_Exploration_41_0.png" src="../../_images/notebooks_Spectral_Timing_Spectral_Timing_Exploration_41_0.png" />
+</div>
+</div>
+<p>Alternatively, we can calculate the Covariance Spectrum in fractional rms normalization</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[25]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">covspec_01_1</span> <span class="o">=</span> <span class="n">CovarianceSpectrum</span><span class="p">(</span><span class="n">events</span><span class="p">,</span> <span class="n">freq_interval</span><span class="o">=</span><span class="p">[</span><span class="mf">0.1</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span>
+                                 <span class="n">segment_size</span><span class="o">=</span><span class="n">segment_size</span><span class="p">,</span> <span class="n">bin_time</span><span class="o">=</span><span class="n">bin_time</span><span class="p">,</span>
+                                 <span class="n">energy_spec</span><span class="o">=</span><span class="n">energy_spec</span><span class="p">,</span> <span class="n">norm</span><span class="o">=</span><span class="s2">&quot;frac&quot;</span><span class="p">)</span>
+<span class="n">covspec_3_30</span> <span class="o">=</span> <span class="n">CovarianceSpectrum</span><span class="p">(</span><span class="n">events</span><span class="p">,</span> <span class="n">freq_interval</span><span class="o">=</span><span class="p">[</span><span class="mi">3</span><span class="p">,</span> <span class="mi">30</span><span class="p">],</span>
+                                  <span class="n">segment_size</span><span class="o">=</span><span class="n">segment_size</span><span class="p">,</span> <span class="n">bin_time</span><span class="o">=</span><span class="n">bin_time</span><span class="p">,</span>
+                                  <span class="n">energy_spec</span><span class="o">=</span><span class="n">energy_spec</span><span class="p">,</span> <span class="n">norm</span><span class="o">=</span><span class="s2">&quot;frac&quot;</span><span class="p">)</span>
+<br/></pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+100%|█████████████████████████████████████████████████████████████████████████████████████████| 40/40 [01:00&lt;00:00,  1.50s/it]
+100%|█████████████████████████████████████████████████████████████████████████████████████████| 40/40 [00:59&lt;00:00,  1.50s/it]
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[26]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">errorbar</span><span class="p">(</span><span class="n">energies</span><span class="p">,</span> <span class="n">covspec_01_1</span><span class="o">.</span><span class="n">spectrum</span><span class="p">,</span>
+             <span class="n">xerr</span><span class="o">=</span><span class="n">energies_err</span><span class="p">,</span> <span class="n">yerr</span><span class="o">=</span><span class="n">covspec_01_1</span><span class="o">.</span><span class="n">spectrum_error</span><span class="p">,</span> <span class="n">fmt</span><span class="o">=</span><span class="s1">&#39;o&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;0.1-1 Hz&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">errorbar</span><span class="p">(</span><span class="n">energies</span><span class="p">,</span> <span class="n">covspec_3_30</span><span class="o">.</span><span class="n">spectrum</span><span class="p">,</span>
+             <span class="n">xerr</span><span class="o">=</span><span class="n">energies_err</span><span class="p">,</span> <span class="n">yerr</span><span class="o">=</span><span class="n">covspec_3_30</span><span class="o">.</span><span class="n">spectrum_error</span><span class="p">,</span> <span class="n">fmt</span><span class="o">=</span><span class="s1">&#39;o&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;3-30 Hz&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">semilogx</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">&quot;Energy (keV)&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">&quot;Fractional Covariance&quot;</span><span class="p">);</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../../_images/notebooks_Spectral_Timing_Spectral_Timing_Exploration_44_0.png" src="../../_images/notebooks_Spectral_Timing_Spectral_Timing_Exploration_44_0.png" />
+</div>
+</div>
+<p>This should largely be equivalent to the RMS spectrum</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[27]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">rmsspec_01_1</span> <span class="o">=</span> <span class="n">RmsSpectrum</span><span class="p">(</span><span class="n">events</span><span class="p">,</span> <span class="n">freq_interval</span><span class="o">=</span><span class="p">[</span><span class="mf">0.1</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span>
+                          <span class="n">segment_size</span><span class="o">=</span><span class="n">segment_size</span><span class="p">,</span> <span class="n">bin_time</span><span class="o">=</span><span class="n">bin_time</span><span class="p">,</span>
+                          <span class="n">energy_spec</span><span class="o">=</span><span class="n">energy_spec</span><span class="p">,</span> <span class="n">norm</span><span class="o">=</span><span class="s2">&quot;frac&quot;</span><span class="p">)</span>
+<span class="n">rmsspec_3_30</span> <span class="o">=</span> <span class="n">RmsSpectrum</span><span class="p">(</span><span class="n">events</span><span class="p">,</span> <span class="n">freq_interval</span><span class="o">=</span><span class="p">[</span><span class="mi">3</span><span class="p">,</span> <span class="mi">30</span><span class="p">],</span>
+                           <span class="n">segment_size</span><span class="o">=</span><span class="n">segment_size</span><span class="p">,</span> <span class="n">bin_time</span><span class="o">=</span><span class="n">bin_time</span><span class="p">,</span>
+                           <span class="n">energy_spec</span><span class="o">=</span><span class="n">energy_spec</span><span class="p">,</span> <span class="n">norm</span><span class="o">=</span><span class="s2">&quot;frac&quot;</span><span class="p">)</span>
+<br/></pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+100%|█████████████████████████████████████████████████████████████████████████████████████████| 40/40 [00:13&lt;00:00,  3.03it/s]
+100%|█████████████████████████████████████████████████████████████████████████████████████████| 40/40 [00:13&lt;00:00,  2.96it/s]
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[28]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">errorbar</span><span class="p">(</span><span class="n">energies</span><span class="p">,</span> <span class="n">covspec_3_30</span><span class="o">.</span><span class="n">spectrum</span><span class="p">,</span>
+             <span class="n">xerr</span><span class="o">=</span><span class="n">energies_err</span><span class="p">,</span> <span class="n">yerr</span><span class="o">=</span><span class="n">covspec_3_30</span><span class="o">.</span><span class="n">spectrum_error</span><span class="p">,</span> <span class="n">fmt</span><span class="o">=</span><span class="s1">&#39;o&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;Cov. 3-30 Hz&quot;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.5</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">errorbar</span><span class="p">(</span><span class="n">energies</span><span class="p">,</span> <span class="n">covspec_01_1</span><span class="o">.</span><span class="n">spectrum</span><span class="p">,</span>
+             <span class="n">xerr</span><span class="o">=</span><span class="n">energies_err</span><span class="p">,</span> <span class="n">yerr</span><span class="o">=</span><span class="n">covspec_01_1</span><span class="o">.</span><span class="n">spectrum_error</span><span class="p">,</span> <span class="n">fmt</span><span class="o">=</span><span class="s1">&#39;o&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;Cov. 0.1-1 Hz&quot;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.5</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">errorbar</span><span class="p">(</span><span class="n">energies</span><span class="p">,</span> <span class="n">rmsspec_3_30</span><span class="o">.</span><span class="n">spectrum</span><span class="p">,</span>
+             <span class="n">xerr</span><span class="o">=</span><span class="n">energies_err</span><span class="p">,</span> <span class="n">yerr</span><span class="o">=</span><span class="n">rmsspec_3_30</span><span class="o">.</span><span class="n">spectrum_error</span><span class="p">,</span> <span class="n">fmt</span><span class="o">=</span><span class="s1">&#39;o&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;RMS 3-30 Hz&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">errorbar</span><span class="p">(</span><span class="n">energies</span><span class="p">,</span> <span class="n">rmsspec_01_1</span><span class="o">.</span><span class="n">spectrum</span><span class="p">,</span>
+             <span class="n">xerr</span><span class="o">=</span><span class="n">energies_err</span><span class="p">,</span> <span class="n">yerr</span><span class="o">=</span><span class="n">rmsspec_01_1</span><span class="o">.</span><span class="n">spectrum_error</span><span class="p">,</span> <span class="n">fmt</span><span class="o">=</span><span class="s1">&#39;o&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;RMS 0.1-1 Hz&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">semilogx</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">&quot;Energy (keV)&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">&quot;Fractional RMS&quot;</span><span class="p">);</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../../_images/notebooks_Spectral_Timing_Spectral_Timing_Exploration_47_0.png" src="../../_images/notebooks_Spectral_Timing_Spectral_Timing_Exploration_47_0.png" />
+</div>
+</div>
+<p>QED, except that the error bars in some points look underestimated. It is always recommended to test error bars with simulations, in any case, as analytic formulas are based on a series of assumptions (in particular, on the coherence) that might not be correct in real life.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[29]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">stingray.varenergyspectrum</span> <span class="kn">import</span> <span class="n">LagSpectrum</span>
+<span class="n">covspec_3_30</span> <span class="o">=</span> <span class="n">CovarianceSpectrum</span><span class="p">(</span><span class="n">events</span><span class="p">,</span> <span class="n">freq_interval</span><span class="o">=</span><span class="p">[</span><span class="mi">3</span><span class="p">,</span> <span class="mi">30</span><span class="p">],</span>
+                                  <span class="n">segment_size</span><span class="o">=</span><span class="n">segment_size</span><span class="p">,</span> <span class="n">bin_time</span><span class="o">=</span><span class="n">bin_time</span><span class="p">,</span>
+                                  <span class="n">energy_spec</span><span class="o">=</span><span class="n">energy_spec</span><span class="p">,</span> <span class="n">norm</span><span class="o">=</span><span class="s2">&quot;frac&quot;</span><span class="p">)</span>
+<br/></pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+100%|█████████████████████████████████████████████████████████████████████████████████████████| 40/40 [00:59&lt;00:00,  1.49s/it]
+</pre></div></div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[30]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">variable_for_value</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">n</span><span class="p">,</span><span class="n">v</span> <span class="ow">in</span> <span class="nb">globals</span><span class="p">()</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">if</span> <span class="nb">id</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="o">==</span> <span class="nb">id</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">n</span>
+    <span class="k">return</span> <span class="kc">None</span>
+
+<span class="k">for</span> <span class="n">func</span> <span class="ow">in</span> <span class="p">[</span><span class="n">lagspec_3_30</span><span class="p">,</span> <span class="n">lagspec_01_1</span><span class="p">,</span> <span class="n">covspec_01_1</span><span class="p">,</span> <span class="n">covspec_3_30</span><span class="p">]:</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="n">variable_for_value</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
+    <span class="n">func</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">name</span> <span class="o">+</span> <span class="s2">&quot;.csv&quot;</span><span class="p">,</span> <span class="n">fmt</span><span class="o">=</span><span class="s2">&quot;ascii&quot;</span><span class="p">)</span>
+<br/></pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>
+</pre></div>
+</div>
+</div>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><h3>Page Contents</h3>
+<ul>
+<li><a class="reference internal" href="#">Load events and plot light curve</a></li>
+<li><a class="reference internal" href="#Calculate-periodogram-and-cross-spectrum">Calculate periodogram and cross spectrum</a></li>
+<li><a class="reference internal" href="#Periodogram-modeling">Periodogram modeling</a></li>
+<li><a class="reference internal" href="#Lags-and-coherence">Lags and coherence</a><ul>
+<li><a class="reference internal" href="#Spectral-timing">Spectral timing</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#Covariance-and-RMS-spectrum">Covariance and RMS spectrum</a></li>
+</ul>
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+<footer class="footer">
+  <p class="pull-right">
+    <a href="../../_sources/notebooks/Spectral Timing/Spectral Timing Exploration.ipynb.txt"
+       rel="nofollow">Page Source</a> &nbsp;
+    <a href="#">Back to Top</a></p>
+  <p>
+    &copy; Copyright 2023, Stingray Developers.<br/>
+    Created using <a href="http://www.sphinx-doc.org/en/stable/">Sphinx</a> 7.0.0. &nbsp;
+    Last built 04 May 2023. <br/>
+  </p>
+</footer>
+  </body>
+</html>
